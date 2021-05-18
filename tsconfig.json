@@ -11,7 +11,7 @@
         "module": "commonjs",
         "lib": ["es6", "es2017", "dom"],
         "target": "es5",
-        "typeRoots": ["./node_modules/@types"]
+        "typeRoots": ["./node_modules/@types", "./types"]
     },
     "include": ["**/*.ts"],
     "exclude": ["node_modules", "build", "cache", "artifacts"],

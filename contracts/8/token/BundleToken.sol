@@ -74,7 +74,7 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
 
     function lock(address _account, uint256 _amount) external onlyOwner {
         require(_account != address(0), "no lock to address(0)");
-        require(_amount <= balanceOf(_account), "no lock over balance");
+        require(_amount <= balanceOf(_account), "balance exceeded");
 
         _transfer(_account, address(this), _amount);
 

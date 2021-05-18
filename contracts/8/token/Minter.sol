@@ -5,9 +5,10 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./BundleToken.sol";
 import "./interfaces/IMinter.sol";
+import "hardhat/console.sol";
 
 // Minter is a smart contract for distributing BDL for staking rewards.
-abstract contract Minter is IMinter, Ownable, ReentrancyGuard {
+contract Minter is IMinter, Ownable, ReentrancyGuard {
   using SafeERC20 for IERC20;
 
   // Info of each user.
@@ -48,6 +49,10 @@ abstract contract Minter is IMinter, Ownable, ReentrancyGuard {
   uint256 public bonusMultiplier;
   // Block number when bonus BDL period ends.
   uint256 public bonusEndBlock;
+  // Lock ratio over 10000 (for precision), determines how much BDL should be locked.
+  uint256 public bonusLockRatio;
+  // Dev minting rate, mint 1/10 of all rewards.
+  uint256 private constant DEV_MINTING_RATE = 10;
 
   // Info of each pool.
   PoolInfo[] public poolInfo;
@@ -66,15 +71,14 @@ abstract contract Minter is IMinter, Ownable, ReentrancyGuard {
     BundleToken _bundle,
     address _devaddr,
     uint256 _blockRewards,
-    uint256 _startBlock,
-    uint256 _bonusEndBlock
+    uint256 _startBlock
   ) {
     bonusMultiplier = 0;
     totalAllocPoint = 0;
+    bonusEndBlock = 0;
     bundle = _bundle;
     devaddr = _devaddr;
     blockRewards = _blockRewards;
-    bonusEndBlock = _bonusEndBlock;
     startBlock = _startBlock;
   }
 
@@ -92,12 +96,15 @@ abstract contract Minter is IMinter, Ownable, ReentrancyGuard {
   // See the calculation and counting in test file.
   function setBonus(
     uint256 _bonusMultiplier,
-    uint256 _bonusEndBlock
+    uint256 _bonusEndBlock,
+    uint256 _bonusLockRatio
   ) external onlyOwner {
     require(_bonusEndBlock > block.number, "setBonus: bad bonusEndBlock");
+    require(block.number < bundle.endReleaseBlock(), "setBonus: bad block");
     require(_bonusMultiplier > 1, "setBonus: bad bonusMultiplier");
     bonusMultiplier = _bonusMultiplier;
     bonusEndBlock = _bonusEndBlock;
+    bonusLockRatio = _bonusLockRatio;
   }
 
   // Add a new lp to the pool. Can only be called by the owner.
@@ -199,17 +206,19 @@ abstract contract Minter is IMinter, Ownable, ReentrancyGuard {
     }
     uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
     uint256 reward = multiplier * blockRewards * pool.allocPoint / totalAllocPoint;
-    bundle.mint(devaddr, reward / 10);
+    bundle.mint(devaddr, reward / DEV_MINTING_RATE);
     bundle.mint(address(this), reward);
     pool.accRewardsPerShare = pool.accRewardsPerShare + (reward * 1e12 / lpSupply);
     // update accRewardsPerShareTilBonusEnd
     if (block.number <= bonusEndBlock) {
-      bundle.lock(devaddr, reward * (block.number - pool.lastRewardBlock) / multiplier);
+      // compute the bonus portion for dev
+      bundle.lock(devaddr, reward * bonusLockRatio / 10000 / DEV_MINTING_RATE);
       pool.accRewardsPerShareTilBonusEnd = pool.accRewardsPerShare;
     }
     if(block.number > bonusEndBlock && pool.lastRewardBlock < bonusEndBlock) {
-      uint256 bonusPortion = (bonusEndBlock - pool.lastRewardBlock) * bonusMultiplier * blockRewards * pool.allocPoint / totalAllocPoint;
-      bundle.lock(devaddr, bonusPortion);
+      // compute the bonus portion for dev
+      uint256 bonusPortion = (bonusEndBlock - pool.lastRewardBlock) * (bonusMultiplier) * blockRewards * pool.allocPoint / totalAllocPoint;
+      bundle.lock(devaddr, bonusPortion * bonusLockRatio / 10000 / DEV_MINTING_RATE);
       pool.accRewardsPerShareTilBonusEnd = pool.accRewardsPerShareTilBonusEnd + (bonusPortion * 1e12 / lpSupply);
     }
     pool.lastRewardBlock = block.number;
@@ -237,6 +246,7 @@ abstract contract Minter is IMinter, Ownable, ReentrancyGuard {
   }
 
   function withdrawAll(address _for, uint256 _pid) external override nonReentrant {
+    console.log(block.number);
     _withdraw(_for, _pid, userInfo[_pid][_for].amount);
   }
 
@@ -275,7 +285,7 @@ abstract contract Minter is IMinter, Ownable, ReentrancyGuard {
     require(pending <= bundle.balanceOf(address(this)), "not enough BDL");
     uint256 bonus = (user.amount * pool.accRewardsPerShareTilBonusEnd / 1e12) - user.bonusDebt;
     safeBundleTransfer(_to, pending);
-    bundle.lock(_to, bonus);
+    bundle.lock(_to, bonus * bonusLockRatio / 10000);
   }
 
   // Withdraw without caring about rewards. EMERGENCY ONLY.
