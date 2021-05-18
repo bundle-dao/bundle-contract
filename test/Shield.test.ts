@@ -284,7 +284,7 @@ describe("Shield", () => {
         shield.address, '0', 'mintWarchest(address,uint256)',
         ethers.utils.defaultAbiCoder.encode(
           ['address','uint256'],
-          [await alice.getAddress(), ethers.utils.parseEther('2750000')]), eta
+          [await alice.getAddress(), ethers.utils.parseEther('250000')]), eta
       );
 
       await TimeHelpers.increase(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
@@ -293,28 +293,30 @@ describe("Shield", () => {
         shield.address, '0', 'mintWarchest(address,uint256)',
         ethers.utils.defaultAbiCoder.encode(
           ['address','uint256'],
-          [await alice.getAddress(), ethers.utils.parseEther('2750000')]), eta
+          [await alice.getAddress(), ethers.utils.parseEther('250000')]), eta
       );
 
-      expect(await shield.mintCount()).to.be.bignumber.eq(ethers.utils.parseEther('3000000'));
-      expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.eq(ethers.utils.parseEther('2750000'));
+      expect(await shield.mintCount()).to.be.bignumber.eq(ethers.utils.parseEther('500000'));
+      expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.eq(ethers.utils.parseEther('250000'));
 
-      eta = (await TimeHelpers.latest()).add(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
-      await timelockAsDev.queueTransaction(
-        shield.address, '0', 'mintWarchest(address,uint256)',
-        ethers.utils.defaultAbiCoder.encode(
-          ['address','uint256'],
-          [await alice.getAddress(), ethers.utils.parseEther('7500000')]), eta
-      );
-
-      await TimeHelpers.increase(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
-
-      await timelockAsDev.executeTransaction(
-        shield.address, '0', 'mintWarchest(address,uint256)',
-        ethers.utils.defaultAbiCoder.encode(
-          ['address','uint256'],
-          [await alice.getAddress(), ethers.utils.parseEther('7500000')]), eta
-      );
+      for(let i = 0; i < 20; i++) {
+        eta = (await TimeHelpers.latest()).add(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
+        await timelockAsDev.queueTransaction(
+          shield.address, '0', 'mintWarchest(address,uint256)',
+          ethers.utils.defaultAbiCoder.encode(
+            ['address','uint256'],
+            [await alice.getAddress(), ethers.utils.parseEther('500000')]), eta
+        );
+  
+        await TimeHelpers.increase(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
+  
+        await timelockAsDev.executeTransaction(
+          shield.address, '0', 'mintWarchest(address,uint256)',
+          ethers.utils.defaultAbiCoder.encode(
+            ['address','uint256'],
+            [await alice.getAddress(), ethers.utils.parseEther('500000')]), eta
+        );
+      }
 
       expect(await shield.mintCount()).to.be.bignumber.eq(ethers.utils.parseEther('10500000'));
       expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.eq(ethers.utils.parseEther('10250000'));
@@ -326,7 +328,7 @@ describe("Shield", () => {
         shield.address, '0', 'mintWarchest(address,uint256)',
         ethers.utils.defaultAbiCoder.encode(
           ['address','uint256'],
-          [await alice.getAddress(), ethers.utils.parseEther('2750000')]), eta
+          [await alice.getAddress(), ethers.utils.parseEther('250000')]), eta
       );
 
       await TimeHelpers.increase(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
@@ -335,18 +337,37 @@ describe("Shield", () => {
         shield.address, '0', 'mintWarchest(address,uint256)',
         ethers.utils.defaultAbiCoder.encode(
           ['address','uint256'],
-          [await alice.getAddress(), ethers.utils.parseEther('2750000')]), eta
+          [await alice.getAddress(), ethers.utils.parseEther('250000')]), eta
       );
 
-      expect(await shield.mintCount()).to.be.bignumber.eq(ethers.utils.parseEther('3000000'));
-      expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.eq(ethers.utils.parseEther('2750000'));
+      expect(await shield.mintCount()).to.be.bignumber.eq(ethers.utils.parseEther('500000'));
+      expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.eq(ethers.utils.parseEther('250000'));
+
+      for(let i = 0; i < 20; i++) {
+        eta = (await TimeHelpers.latest()).add(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
+        await timelockAsDev.queueTransaction(
+          shield.address, '0', 'mintWarchest(address,uint256)',
+          ethers.utils.defaultAbiCoder.encode(
+            ['address','uint256'],
+            [await alice.getAddress(), ethers.utils.parseEther('500000')]), eta
+        );
+  
+        await TimeHelpers.increase(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
+  
+        await timelockAsDev.executeTransaction(
+          shield.address, '0', 'mintWarchest(address,uint256)',
+          ethers.utils.defaultAbiCoder.encode(
+            ['address','uint256'],
+            [await alice.getAddress(), ethers.utils.parseEther('500000')]), eta
+        );
+      }
 
       eta = (await TimeHelpers.latest()).add(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
       await timelockAsDev.queueTransaction(
         shield.address, '0', 'mintWarchest(address,uint256)',
         ethers.utils.defaultAbiCoder.encode(
           ['address','uint256'],
-          [await alice.getAddress(), ethers.utils.parseEther('7500001')]), eta
+          [await alice.getAddress(), ethers.utils.parseEther('1')]), eta
       );
 
       await TimeHelpers.increase(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
@@ -355,10 +376,29 @@ describe("Shield", () => {
         shield.address, '0', 'mintWarchest(address,uint256)',
         ethers.utils.defaultAbiCoder.encode(
           ['address','uint256'],
-          [await alice.getAddress(), ethers.utils.parseEther('7500001')]), eta
+          [await alice.getAddress(), ethers.utils.parseEther('1')]), eta
       )).to.be.revertedWith('Shield::mintWarchest:: mint exceeded mintLimit');
-      expect(await shield.mintCount()).to.be.bignumber.eq(ethers.utils.parseEther('3000000'));
-      expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.eq(ethers.utils.parseEther('2750000'));
+      expect(await shield.mintCount()).to.be.bignumber.eq(ethers.utils.parseEther('10500000'));
+      expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.eq(ethers.utils.parseEther('10250000'));
+    });
+
+    it('should revert when amount > 500000', async() => {
+        let eta = (await TimeHelpers.latest()).add(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
+        await timelockAsDev.queueTransaction(
+          shield.address, '0', 'mintWarchest(address,uint256)',
+          ethers.utils.defaultAbiCoder.encode(
+            ['address','uint256'],
+            [await alice.getAddress(), ethers.utils.parseEther('500001')]), eta
+        );
+  
+        await TimeHelpers.increase(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
+  
+        await expect(timelockAsDev.executeTransaction(
+          shield.address, '0', 'mintWarchest(address,uint256)',
+          ethers.utils.defaultAbiCoder.encode(
+            ['address','uint256'],
+            [await alice.getAddress(), ethers.utils.parseEther('500001')]), eta
+        )).to.be.revertedWith('Shield::mintWarchest:: mint exceeded individualMintLimit');
     });
   });
 });

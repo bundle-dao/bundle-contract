@@ -13,6 +13,7 @@ contract Shield is Ownable {
 
   uint256 public mintLimit = 10500000e18;
   uint256 public mintCount = 250000e18;
+  uint256 public individualMintLimit = 500000e18;
 
   event SetRewardsPerBlock(uint256 indexed _alpacaPerBlock);
   event SetBonus(uint256 _bonusMultiplier, uint256 _bonusEndBlock, uint256 _bonusLockUpBps);
@@ -46,6 +47,7 @@ contract Shield is Ownable {
   /// @param _amount Amount to be minted
   function mintWarchest(address _to, uint256 _amount) external onlyOwner {
     require(mintCount.add(_amount) <= mintLimit, "Shield::mintWarchest:: mint exceeded mintLimit");
+    require(_amount <= individualMintLimit, "Shield::mintWarchest:: mint exceeded individualMintLimit");
     minter.manualMint(_to, _amount);
     mintCount = mintCount.add(_amount);
     emit MintWarchest(_to, _amount);
