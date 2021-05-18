@@ -9,14 +9,13 @@
 // Ctrl+f for XXX to see all the modifications.
 
 // XXX: pragma solidity ^0.5.16;
-pragma solidity 0.7.6;
+pragma solidity 0.6.12;
 
-// XXX: import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract Timelock is ReentrancyGuard {
-  using SafeMathUpgradeable for uint;
+  using SafeMath for uint;
 
   event NewAdmin(address indexed newAdmin);
   event NewPendingAdmin(address indexed newPendingAdmin);
@@ -37,8 +36,7 @@ contract Timelock is ReentrancyGuard {
   mapping (bytes32 => bool) public queuedTransactions;
 
   // delay_ in seconds
-  // XXX: constructor(address admin_, uint delay_) public {
-  constructor(address admin_, uint delay_) {
+  constructor(address admin_, uint delay_) public {
     require(delay_ >= MINIMUM_DELAY, "Timelock::constructor: Delay must exceed minimum delay.");
     require(delay_ <= MAXIMUM_DELAY, "Timelock::constructor: Delay must not exceed maximum delay.");
 

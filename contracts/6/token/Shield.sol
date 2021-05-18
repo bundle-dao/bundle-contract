@@ -1,4 +1,5 @@
-pragma solidity 0.7.6;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.6.12;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -19,7 +20,7 @@ contract Shield is Ownable {
   event AddPool(uint256 indexed _pid, uint256 _allocPoint, address indexed _stakeToken);
   event SetPool(uint256 indexed _pid, uint256 _allocPoint);
 
-  constructor(address _owner, IMinterDetailed _minter) {
+  constructor(address _owner, IMinterDetailed _minter) public {
     transferOwnership(_owner);
     minter = _minter;
   }

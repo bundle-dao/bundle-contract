@@ -77,9 +77,9 @@ describe("Minter", () => {
         "MockERC20",
         deployer
       )) as MockERC20__factory;
-      const mockMockERC20 = await MockERC20.deploy() as MockERC20;
-      await mockMockERC20.deployed();
-      stakingTokens.push(mockMockERC20);
+      const mockERC20 = await upgrades.deployProxy(MockERC20, [`STOKEN${i}`, `STOKEN${i}`]) as MockERC20;
+      await mockERC20.deployed();
+      stakingTokens.push(mockERC20);
     }
 
     bundleTokenAsAlice = BundleToken__factory.connect(bundleToken.address, alice);

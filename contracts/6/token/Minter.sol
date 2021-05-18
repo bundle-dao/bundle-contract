@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity 0.6.12;
 
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -73,7 +73,7 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     address _devaddr,
     uint256 _blockRewards,
     uint256 _startBlock
-  ) {
+  ) public {
     bonusMultiplier = 0;
     totalAllocPoint = 0;
     bonusEndBlock = 0;

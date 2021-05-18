@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity 0.6.12;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -7,8 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // BundleToken with Governance.
 contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
-    using SafeMath for uint256;
-
     uint256 private constant CAP = 210000000e18; // 210 million Bundle
     uint256 private _totalLock;
 
@@ -22,7 +20,7 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
 
     event Lock(address indexed to, uint256 value);
 
-    constructor(uint256 _startReleaseBlock, uint256 _endReleaseBlock) {
+    constructor(uint256 _startReleaseBlock, uint256 _endReleaseBlock) public {
         require(_endReleaseBlock > _startReleaseBlock, "bad endReleaseBlock");
         startReleaseBlock = _startReleaseBlock;
         endReleaseBlock = _endReleaseBlock;
