@@ -16,7 +16,7 @@ chai.use(solidity);
 const { expect } = chai;
 
 describe("Minter", () => {
-  const ALPACA_REWARD_PER_BLOCK = ethers.utils.parseEther('5000');
+  const BLOCK_REWARDS = ethers.utils.parseEther('5000');
 
   // Contract as Signer
   let bundleTokenAsAlice: BundleToken;
@@ -65,7 +65,7 @@ describe("Minter", () => {
       deployer
     )) as Minter__factory;
     minter = await Minter.deploy(
-      bundleToken.address, (await dev.getAddress()), ALPACA_REWARD_PER_BLOCK, 0
+      bundleToken.address, (await dev.getAddress()), BLOCK_REWARDS, 0
     )
     await minter.deployed();
 

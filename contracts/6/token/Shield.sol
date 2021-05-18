@@ -15,7 +15,7 @@ contract Shield is Ownable {
   uint256 public mintCount = 250000e18;
   uint256 public individualMintLimit = 500000e18;
 
-  event SetRewardsPerBlock(uint256 indexed _alpacaPerBlock);
+  event SetRewardsPerBlock(uint256 indexed _blockRewards);
   event SetBonus(uint256 _bonusMultiplier, uint256 _bonusEndBlock, uint256 _bonusLockUpBps);
   event MintWarchest(address indexed _to, uint256 _amount);
   event AddPool(uint256 indexed _pid, uint256 _allocPoint, address indexed _stakeToken);
@@ -27,7 +27,7 @@ contract Shield is Ownable {
   }
 
   /// @dev Set BDL per Block on Minter. Effect immediately on the next block.
-  /// @param _blockRewards The new alpacaPerBlock
+  /// @param _blockRewards The new block rewards
   function setRewardsPerBlock(uint256 _blockRewards) external onlyOwner {
     minter.setRewardsPerBlock(_blockRewards);
     emit SetRewardsPerBlock(_blockRewards);

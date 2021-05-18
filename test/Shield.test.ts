@@ -44,7 +44,7 @@ describe("Shield", () => {
     [deployer, alice, bob, dev] = await ethers.getSigners();
 
     // Setup Minter contract
-    // Deploy ALPACAs
+    // Deploy BDL
     const BundleToken = (await ethers.getContractFactory(
       "BundleToken",
       deployer
