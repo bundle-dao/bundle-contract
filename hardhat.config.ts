@@ -47,7 +47,7 @@ const config: HardhatUserConfig = {
         },
     },
     solidity: {
-        version: '0.8.4',
+        version: '0.7.6',
         settings: {
             optimizer: {
                 enabled: true,
@@ -70,7 +70,7 @@ const config: HardhatUserConfig = {
         },
     },
     paths: {
-        sources: './contracts/8',
+        sources: './contracts/7',
         tests: './test',
         cache: './cache',
         artifacts: './artifacts',

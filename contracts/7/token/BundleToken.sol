@@ -1,4 +1,5 @@
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -6,6 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // BundleToken with Governance.
 contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
+    using SafeMath for uint256;
+
     uint256 private constant CAP = 210000000e18; // 210 million Bundle
     uint256 private _totalLock;
 
@@ -20,7 +23,7 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
     event Lock(address indexed to, uint256 value);
 
     constructor(uint256 _startReleaseBlock, uint256 _endReleaseBlock) {
-        require(_endReleaseBlock > _startReleaseBlock, "endReleaseBlock < startReleaseBlock");
+        require(_endReleaseBlock > _startReleaseBlock, "bad endReleaseBlock");
         startReleaseBlock = _startReleaseBlock;
         endReleaseBlock = _endReleaseBlock;
 
@@ -37,7 +40,7 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
     }
 
     function unlockedSupply() external view returns (uint256) {
-        return totalSupply() - totalLock();
+        return totalSupply().sub(totalLock());
     }
 
     function totalLock() public view returns (uint256) {
@@ -45,13 +48,13 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
     }
 
     function manualMint(address _to, uint256 _amount) public onlyOwner {
-        require((manualMinted + _amount) <= MANUAL_MINT_LIMIT, "mint limit exceeded");
-        manualMinted = manualMinted + _amount;
+        require(manualMinted.add(_amount) <= MANUAL_MINT_LIMIT, "mint limit exceeded");
+        manualMinted = manualMinted.add(_amount);
         mint(_to, _amount);
     }
 
     function mint(address _to, uint256 _amount) public onlyOwner {
-        require((totalSupply() + _amount) <= cap(), "cap exceeded");
+        require(totalSupply().add(_amount) <= cap(), "cap exceeded");
         _mint(_to, _amount);
         _moveDelegates(address(0), _delegates[_to], _amount);
     }
@@ -61,7 +64,7 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
     }
 
     function totalBalanceOf(address _account) external view returns (uint256) {
-        return _locks[_account] + balanceOf(_account);
+        return _locks[_account].add(balanceOf(_account));
     }
 
     function lockOf(address _account) external view returns (uint256) {
@@ -78,8 +81,8 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
 
         _transfer(_account, address(this), _amount);
 
-        _locks[_account] = _locks[_account] + _amount;
-        _totalLock = _totalLock + _amount;
+        _locks[_account] = _locks[_account].add(_amount);
+        _totalLock = _totalLock.add(_amount);
 
         if (_lastUnlockBlock[_account] < startReleaseBlock) {
             _lastUnlockBlock[_account] = startReleaseBlock;
@@ -101,9 +104,9 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
         // some BDL can be released
         else
         {
-            uint256 releasedBlock = block.number - _lastUnlockBlock[_account];
-            uint256 blockLeft = endReleaseBlock - _lastUnlockBlock[_account];
-            return (_locks[_account] * releasedBlock) / blockLeft;
+            uint256 releasedBlock = block.number.sub(_lastUnlockBlock[_account]);
+            uint256 blockLeft = endReleaseBlock.sub(_lastUnlockBlock[_account]);
+            return _locks[_account].mul(releasedBlock).div(blockLeft);
         }
     }
 
@@ -113,15 +116,15 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
         uint256 amount = canUnlockAmount(msg.sender);
 
         _transfer(address(this), msg.sender, amount);
-        _locks[msg.sender] = _locks[msg.sender] - amount;
+        _locks[msg.sender] = _locks[msg.sender].sub(amount);
         _lastUnlockBlock[msg.sender] = block.number;
-        _totalLock = _totalLock - amount;
+        _totalLock = _totalLock.sub(amount);
     }
 
     // Governance cloned and modified from COMPOUND to use uint256:
     // https://github.com/compound-finance/compound-protocol/blob/master/contracts/Governance/Comp.sol
 
-    /// @notice A record of each accounts delegate
+    /// @dev A record of each accounts delegate
     mapping(address => address) internal _delegates;
 
     /// @notice A checkpoint for marking number of votes from a given block
@@ -269,7 +272,7 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
                 // decrease old representative
                 uint32 srcRepNum = numCheckpoints[srcRep];
                 uint256 srcRepOld = srcRepNum > 0 ? checkpoints[srcRep][srcRepNum - 1].votes : 0;
-                uint256 srcRepNew = srcRepOld - amount;
+                uint256 srcRepNew = srcRepOld.sub(amount);
                 _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
             }
 
@@ -277,7 +280,7 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
                 // increase new representative
                 uint32 dstRepNum = numCheckpoints[dstRep];
                 uint256 dstRepOld = dstRepNum > 0 ? checkpoints[dstRep][dstRepNum - 1].votes : 0;
-                uint256 dstRepNew = dstRepOld + amount;
+                uint256 dstRepNew = dstRepOld.add(amount);
                 _writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
             }
         }
@@ -306,7 +309,7 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
         return uint32(n);
     }
 
-    function getChainId() internal view returns (uint256) {
+    function getChainId() internal pure returns (uint256) {
         uint256 chainId;
         assembly { chainId := chainid() }
         return chainId;

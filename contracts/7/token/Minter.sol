@@ -1,14 +1,15 @@
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.7.6;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "./BundleToken.sol";
 import "./interfaces/IMinter.sol";
-import "hardhat/console.sol";
 
 // Minter is a smart contract for distributing BDL for staking rewards.
 contract Minter is IMinter, Ownable, ReentrancyGuard {
+  using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
   // Info of each user.
@@ -119,7 +120,7 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     require(_stakeToken != address(0), "add: not stakeToken addr");
     require(!isDuplicatedPool(_stakeToken), "add: stakeToken dup");
     uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
-    totalAllocPoint = totalAllocPoint + _allocPoint;
+    totalAllocPoint = totalAllocPoint.add(_allocPoint);
     poolInfo.push(
       PoolInfo({
         stakeToken: _stakeToken,
@@ -138,7 +139,7 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     bool /* _withUpdate */
   ) external override onlyOwner {
     massUpdatePools();
-    totalAllocPoint = totalAllocPoint - poolInfo[_pid].allocPoint + _allocPoint;
+    totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
     poolInfo[_pid].allocPoint = _allocPoint;
   }
 
@@ -162,13 +163,13 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
   // The product of multiplier and block rewards should give full period rewards
   function getMultiplier(uint256 _lastRewardBlock, uint256 _currentBlock) public view returns (uint256) {
     if (_currentBlock <= bonusEndBlock) {
-      return (_currentBlock - _lastRewardBlock) * bonusMultiplier;
+      return _currentBlock.sub(_lastRewardBlock).mul(bonusMultiplier);
     }
     if (_lastRewardBlock >= bonusEndBlock) {
-      return _currentBlock - _lastRewardBlock;
+      return _currentBlock.sub(_lastRewardBlock);
     }
     // This is the case where bonusEndBlock is in the middle of _lastRewardBlock and _currentBlock block.
-    return ((bonusEndBlock - _lastRewardBlock) * bonusMultiplier) + (_currentBlock - bonusEndBlock);
+    return bonusEndBlock.sub(_lastRewardBlock).mul(bonusMultiplier).add(_currentBlock.sub(bonusEndBlock));
   }
 
   // View function to see pending BDL on frontend.
@@ -179,10 +180,10 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     uint256 lpSupply = IERC20(pool.stakeToken).balanceOf(address(this));
     if (block.number > pool.lastRewardBlock && lpSupply != 0) {
       uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-      uint256 reward = multiplier * blockRewards * pool.allocPoint / totalAllocPoint;
-      accRewardsPerShare = accRewardsPerShare + (reward * 1e12 / lpSupply);
+      uint256 reward = multiplier.mul(blockRewards).mul(pool.allocPoint).div(totalAllocPoint);
+      accRewardsPerShare = accRewardsPerShare.add(reward.mul(1e12).div(lpSupply));
     }
-    return (user.amount * accRewardsPerShare / 1e12) - user.rewardDebt;
+    return user.amount.mul(accRewardsPerShare).div(1e12).sub(user.rewardDebt);
   }
 
   // Update reward vairables for all pools. Be careful of gas spending!
@@ -205,21 +206,21 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
       return;
     }
     uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-    uint256 reward = multiplier * blockRewards * pool.allocPoint / totalAllocPoint;
-    bundle.mint(devaddr, reward / DEV_MINTING_RATE);
+    uint256 reward = multiplier.mul(blockRewards).mul(pool.allocPoint).div(totalAllocPoint);
+    bundle.mint(devaddr, reward.div(DEV_MINTING_RATE));
     bundle.mint(address(this), reward);
-    pool.accRewardsPerShare = pool.accRewardsPerShare + (reward * 1e12 / lpSupply);
+    pool.accRewardsPerShare = pool.accRewardsPerShare.add(reward.mul(1e12).div(lpSupply));
     // update accRewardsPerShareTilBonusEnd
     if (block.number <= bonusEndBlock) {
       // compute the bonus portion for dev
-      bundle.lock(devaddr, reward * bonusLockRatio / 10000 / DEV_MINTING_RATE);
+      bundle.lock(devaddr, reward.mul(bonusLockRatio).div(10000).div(DEV_MINTING_RATE));
       pool.accRewardsPerShareTilBonusEnd = pool.accRewardsPerShare;
     }
     if(block.number > bonusEndBlock && pool.lastRewardBlock < bonusEndBlock) {
       // compute the bonus portion for dev
-      uint256 bonusPortion = (bonusEndBlock - pool.lastRewardBlock) * (bonusMultiplier) * blockRewards * pool.allocPoint / totalAllocPoint;
-      bundle.lock(devaddr, bonusPortion * bonusLockRatio / 10000 / DEV_MINTING_RATE);
-      pool.accRewardsPerShareTilBonusEnd = pool.accRewardsPerShareTilBonusEnd + (bonusPortion * 1e12 / lpSupply);
+      uint256 bonusPortion = bonusEndBlock.sub(pool.lastRewardBlock).mul(bonusMultiplier).mul(blockRewards).mul(pool.allocPoint).div(totalAllocPoint);
+      bundle.lock(devaddr, bonusPortion.mul(bonusLockRatio).div(10000).div(DEV_MINTING_RATE));
+      pool.accRewardsPerShareTilBonusEnd = pool.accRewardsPerShareTilBonusEnd.add(bonusPortion.mul(1e12).div(lpSupply));
     }
     pool.lastRewardBlock = block.number;
   }
@@ -234,9 +235,9 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     if (user.amount > 0) _harvest(_for, _pid);
     if (user.fundedBy == address(0)) user.fundedBy = msg.sender;
     IERC20(pool.stakeToken).safeTransferFrom(address(msg.sender), address(this), _amount);
-    user.amount = user.amount + _amount;
-    user.rewardDebt = user.amount * pool.accRewardsPerShare / 1e12;
-    user.bonusDebt = user.amount * pool.accRewardsPerShareTilBonusEnd / 1e12;
+    user.amount = user.amount.add(_amount);
+    user.rewardDebt = user.amount.mul(pool.accRewardsPerShare).div(1e12);
+    user.bonusDebt = user.amount.mul(pool.accRewardsPerShareTilBonusEnd).div(1e12);
     emit Deposit(msg.sender, _pid, _amount);
   }
 
@@ -246,7 +247,6 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
   }
 
   function withdrawAll(address _for, uint256 _pid) external override nonReentrant {
-    console.log(block.number);
     _withdraw(_for, _pid, userInfo[_pid][_for].amount);
   }
 
@@ -257,9 +257,9 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     require(user.amount >= _amount, "withdraw: not good");
     updatePool(_pid);
     _harvest(_for, _pid);
-    user.amount = user.amount - _amount;
-    user.rewardDebt = user.amount * pool.accRewardsPerShare / 1e12;
-    user.bonusDebt = user.amount * pool.accRewardsPerShareTilBonusEnd / 1e12;
+    user.amount = user.amount.sub(_amount);
+    user.rewardDebt = user.amount.mul(pool.accRewardsPerShare).div(1e12);
+    user.bonusDebt = user.amount.mul(pool.accRewardsPerShareTilBonusEnd).div(1e12);
     if (user.amount == 0) user.fundedBy = address(0);
     if (pool.stakeToken != address(0)) {
       IERC20(pool.stakeToken).safeTransfer(address(msg.sender), _amount);
@@ -273,19 +273,19 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     UserInfo storage user = userInfo[_pid][msg.sender];
     updatePool(_pid);
     _harvest(msg.sender, _pid);
-    user.rewardDebt = user.amount * pool.accRewardsPerShare / 1e12;
-    user.bonusDebt = user.amount * pool.accRewardsPerShareTilBonusEnd / 1e12;
+    user.rewardDebt = user.amount.mul(pool.accRewardsPerShare).div(1e12);
+    user.bonusDebt = user.amount.mul(pool.accRewardsPerShareTilBonusEnd).div(1e12);
   }
 
   function _harvest(address _to, uint256 _pid) internal {
     PoolInfo storage pool = poolInfo[_pid];
     UserInfo storage user = userInfo[_pid][_to];
     require(user.amount > 0, "nothing to harvest");
-    uint256 pending = (user.amount * pool.accRewardsPerShare / 1e12) - user.rewardDebt;
+    uint256 pending = user.amount.mul(pool.accRewardsPerShare).div(1e12).sub(user.rewardDebt);
     require(pending <= bundle.balanceOf(address(this)), "not enough BDL");
-    uint256 bonus = (user.amount * pool.accRewardsPerShareTilBonusEnd / 1e12) - user.bonusDebt;
+    uint256 bonus = user.amount.mul(pool.accRewardsPerShareTilBonusEnd).div(1e12).sub(user.bonusDebt);
     safeBundleTransfer(_to, pending);
-    bundle.lock(_to, bonus * bonusLockRatio / 10000);
+    bundle.lock(_to, bonus.mul(bonusLockRatio).div(10000));
   }
 
   // Withdraw without caring about rewards. EMERGENCY ONLY.
