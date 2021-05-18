@@ -11,7 +11,7 @@ contract Shield is Ownable {
 
   IMinterDetailed public minter;
 
-  uint256 public mintLimit = 8000000e18;
+  uint256 public mintLimit = 10500000e18;
   uint256 public mintCount = 250000e18;
 
   event SetRewardsPerBlock(uint256 indexed _alpacaPerBlock);
