@@ -45,6 +45,19 @@ contract BundleToken is ERC20("Bundle", "BDL"), Ownable {
         return _totalLock;
     }
 
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        _moveDelegates(_delegates[_msgSender()], _delegates[recipient], amount);
+        return true;
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(sender, _msgSender(), allowance(sender, _msgSender()).sub(amount, "ERC20: transfer amount exceeds allowance"));
+        _moveDelegates(_delegates[sender], _delegates[recipient], amount);
+        return true;
+    }
+
     function manualMint(address _to, uint256 _amount) public onlyOwner {
         require(manualMinted.add(_amount) <= MANUAL_MINT_LIMIT, "mint limit exceeded");
         manualMinted = manualMinted.add(_amount);
