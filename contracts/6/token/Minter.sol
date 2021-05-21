@@ -297,6 +297,7 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     emit EmergencyWithdraw(msg.sender, _pid, user.amount);
     user.amount = 0;
     user.rewardDebt = 0;
+    user.bonusDebt = 0;
     user.fundedBy = address(0);
   }
 
