@@ -8,6 +8,7 @@ import '@typechain/hardhat'
 import '@nomiclabs/hardhat-waffle';
 import 'hardhat-deploy';
 import 'solidity-coverage';
+import "@nomiclabs/hardhat-etherscan";
 
 const config: HardhatUserConfig = {
     defaultNetwork: 'hardhat',
@@ -79,6 +80,9 @@ const config: HardhatUserConfig = {
         outDir: './typechain',
         target: 'ethers-v5',
     },
+    etherscan: {
+        apiKey: process.env.BSCSCAN_API_KEY!
+      }
 };
 
 export default config;
