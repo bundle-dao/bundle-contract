@@ -41,6 +41,10 @@ const config: HardhatUserConfig = {
             url: 'https://data-seed-prebsc-1-s3.binance.org:8545',
             accounts: [process.env.BSC_TESTNET_PRIVATE_KEY!],
         },
+        mainnet: {
+            url: process.env.BSC_MAINNET_RPC,
+            accounts: [process.env.BSC_MAINNET_PRIVATE_KEY!],
+        },
     },
     namedAccounts: {
         deployer: {
