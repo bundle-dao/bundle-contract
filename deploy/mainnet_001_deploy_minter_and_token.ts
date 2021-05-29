@@ -14,7 +14,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const LOCK_END_RELEASE = '10041200';
     /* Deploy Parameters */
 
-    const DEV_ADDR = '0x648f572498C8BA53949F4da1F2D73cdc8420bb5B';
+    const DEV_ADDR = '0x148cF46a5A9E8B31e37AbcD4720168062F81F4a0';
 
     const { deployments, getNamedAccounts, network } = hre;
     const { deploy } = deployments;
@@ -43,7 +43,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         from: deployer,
         args: [
             bundleToken.address,
-            deployer,
+            DEV_ADDR,
             REWARD_PER_BLOCK,
             START_BLOCK
         ],
@@ -61,7 +61,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await minter.setBonus(BONUS_MULTIPLIER, BONUS_END_BLOCK, BONUS_LOCK_BPS);
     console.log("✅ Done");
 
-    console.log(">> Transferring ownership of Minter from deployer to dev");
+    console.log(">> Transferring ownership of Minter from deployer to secure dev");
     await minter.transferOwnership(DEV_ADDR, { gasLimit: '500000' });
     console.log("✅ Done");
 
@@ -80,7 +80,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         address: (await deployments.get('Minter')).address,
         constructorArguments: [
             bundleToken.address,
-            deployer,
+            DEV_ADDR,
             REWARD_PER_BLOCK,
             START_BLOCK
         ],

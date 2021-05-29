@@ -17,7 +17,6 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     uint256 amount; // How many Staking tokens the user has provided.
     uint256 rewardDebt; // Reward debt. See explanation below.
     uint256 bonusDebt; // Bonus reward debt.
-    address fundedBy; // Funded by who?
     //
     // We do some fancy math here. Basically, any point in time, the amount of BDL
     // entitled to a user but is pending to be distributed is:
@@ -226,14 +225,12 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
   }
 
   // Deposit Staking tokens to Minter for BDL allocation.
-  function deposit(address _for, uint256 _pid, uint256 _amount) external override nonReentrant {
+  function deposit(uint256 _pid, uint256 _amount) external override nonReentrant {
     PoolInfo storage pool = poolInfo[_pid];
-    UserInfo storage user = userInfo[_pid][_for];
-    if (user.fundedBy != address(0)) require(user.fundedBy == msg.sender, "bad sof");
+    UserInfo storage user = userInfo[_pid][msg.sender];
     require(pool.stakeToken != address(0), "deposit: not accept deposit");
     updatePool(_pid);
-    if (user.amount > 0) _harvest(_for, _pid);
-    if (user.fundedBy == address(0)) user.fundedBy = msg.sender;
+    if (user.amount > 0) _harvest(_pid);
     IERC20(pool.stakeToken).safeTransferFrom(address(msg.sender), address(this), _amount);
     user.amount = user.amount.add(_amount);
     user.rewardDebt = user.amount.mul(pool.accRewardsPerShare).div(1e12);
@@ -242,25 +239,23 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
   }
 
   // Withdraw Staking tokens from FairLaunchToken.
-  function withdraw(address _for, uint256 _pid, uint256 _amount) external override nonReentrant {
-    _withdraw(_for, _pid, _amount);
+  function withdraw(uint256 _pid, uint256 _amount) external override nonReentrant {
+    _withdraw(_pid, _amount);
   }
 
-  function withdrawAll(address _for, uint256 _pid) external override nonReentrant {
-    _withdraw(_for, _pid, userInfo[_pid][_for].amount);
+  function withdrawAll(uint256 _pid) external override nonReentrant {
+    _withdraw(_pid, userInfo[_pid][msg.sender].amount);
   }
 
-  function _withdraw(address _for, uint256 _pid, uint256 _amount) internal {
+  function _withdraw(uint256 _pid, uint256 _amount) internal {
     PoolInfo storage pool = poolInfo[_pid];
-    UserInfo storage user = userInfo[_pid][_for];
-    require(user.fundedBy == msg.sender, "only funder");
+    UserInfo storage user = userInfo[_pid][msg.sender];
     require(user.amount >= _amount, "withdraw: not good");
     updatePool(_pid);
-    _harvest(_for, _pid);
+    _harvest(_pid);
     user.amount = user.amount.sub(_amount);
     user.rewardDebt = user.amount.mul(pool.accRewardsPerShare).div(1e12);
     user.bonusDebt = user.amount.mul(pool.accRewardsPerShareTilBonusEnd).div(1e12);
-    if (user.amount == 0) user.fundedBy = address(0);
     if (pool.stakeToken != address(0)) {
       IERC20(pool.stakeToken).safeTransfer(address(msg.sender), _amount);
     }
@@ -272,32 +267,31 @@ contract Minter is IMinter, Ownable, ReentrancyGuard {
     PoolInfo storage pool = poolInfo[_pid];
     UserInfo storage user = userInfo[_pid][msg.sender];
     updatePool(_pid);
-    _harvest(msg.sender, _pid);
+    _harvest(_pid);
     user.rewardDebt = user.amount.mul(pool.accRewardsPerShare).div(1e12);
     user.bonusDebt = user.amount.mul(pool.accRewardsPerShareTilBonusEnd).div(1e12);
   }
 
-  function _harvest(address _to, uint256 _pid) internal {
+  function _harvest(uint256 _pid) internal {
     PoolInfo storage pool = poolInfo[_pid];
-    UserInfo storage user = userInfo[_pid][_to];
+    UserInfo storage user = userInfo[_pid][msg.sender];
     require(user.amount > 0, "nothing to harvest");
     uint256 pending = user.amount.mul(pool.accRewardsPerShare).div(1e12).sub(user.rewardDebt);
     require(pending <= bundle.balanceOf(address(this)), "not enough BDL");
     uint256 bonus = user.amount.mul(pool.accRewardsPerShareTilBonusEnd).div(1e12).sub(user.bonusDebt);
-    safeBundleTransfer(_to, pending);
-    bundle.lock(_to, bonus.mul(bonusLockRatio).div(10000));
+    safeBundleTransfer(msg.sender, pending);
+    bundle.lock(msg.sender, bonus.mul(bonusLockRatio).div(10000));
   }
 
   // Withdraw without caring about rewards. EMERGENCY ONLY.
   function emergencyWithdraw(uint256 _pid) external nonReentrant {
     PoolInfo storage pool = poolInfo[_pid];
     UserInfo storage user = userInfo[_pid][msg.sender];
-    require(user.fundedBy == msg.sender, "only funder");
     IERC20(pool.stakeToken).safeTransfer(address(msg.sender), user.amount);
     emit EmergencyWithdraw(msg.sender, _pid, user.amount);
     user.amount = 0;
     user.rewardDebt = 0;
-    user.fundedBy = address(0);
+    user.bonusDebt = 0;
   }
 
     // Safe bundle transfer function, just in case if rounding error causes pool to not have enough BDL.

@@ -1,5 +1,5 @@
 import { ethers, upgrades } from "hardhat";
-import { Overrides, Signer } from "ethers";
+import { BigNumber, Overrides, Signer } from "ethers";
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import "@openzeppelin/test-helpers";
@@ -11,6 +11,7 @@ import {
   MockERC20,
   MockERC20__factory
 } from "../typechain";
+import { equal } from "assert";
 
 chai.use(solidity);
 const { expect } = chai;
@@ -48,7 +49,7 @@ describe("Minter", () => {
   let minter: Minter;
   let stakingTokens: MockERC20[];
 
-  beforeEach(async() => {
+  beforeEach(async () => {
     [deployer, alice, bob, dev] = await ethers.getSigners();
 
     // Setup Minter contract
@@ -102,8 +103,8 @@ describe("Minter", () => {
     minterAsDev = Minter__factory.connect(minter.address, dev);
   });
 
-  context('when adjust params', async() => {
-    it('should add new pool', async() => {
+  context('when adjust params', async () => {
+    it('should add new pool', async () => {
       for(let i = 0; i < stakingTokens.length; i++) {
         await minter.addPool(1, stakingTokens[i].address, false,
           { from: (await deployer.getAddress()) } as Overrides)
@@ -111,7 +112,7 @@ describe("Minter", () => {
       expect(await minter.poolLength()).to.eq(stakingTokens.length);
     });
 
-    it('should revert when the stakeToken is already added to the pool', async() => {
+    it('should revert when the stakeToken is already added to the pool', async () => {
       for(let i = 0; i < stakingTokens.length; i++) {
         await minter.addPool(1, stakingTokens[i].address, false,
           { from: (await deployer.getAddress()) } as Overrides)
@@ -123,20 +124,20 @@ describe("Minter", () => {
     });
   });
 
-  context('when use pool', async() => {
-    it('should revert when there is nothing to be harvested', async() => {
+  context('when use pool', async () => {
+    it('should revert when there is nothing to be harvested', async () => {
       await minter.addPool(1, stakingTokens[0].address.toString(), false,
         { from: (await deployer.getAddress()) } as Overrides);
       await expect(minter.harvest(0,
         { from: (await deployer.getAddress()) } as Overrides)).to.be.revertedWith("nothing to harvest");
     });
 
-    it('should revert when that pool is not existed', async() => {
-      await expect(minter.deposit((await deployer.getAddress()), 88, ethers.utils.parseEther('100'),
+    it('should revert when that pool is not existed', async () => {
+      await expect(minter.deposit(88, ethers.utils.parseEther('100'),
         { from: (await deployer.getAddress()) } as Overrides)).to.be.reverted;
     });
 
-    it('should revert when withdrawer is not a funder', async () => {
+    it('withdrawAll should return all funds', async () => {
       // 1. Mint STOKEN0 for staking
       await stoken0AsDeployer.mint((await alice.getAddress()), ethers.utils.parseEther('400'));
 
@@ -145,32 +146,14 @@ describe("Minter", () => {
 
       // 3. Deposit STOKEN0 to the STOKEN0 pool
       await stoken0AsAlice.approve(minter.address, ethers.utils.parseEther('100'));
-      await minterAsAlice.deposit((await bob.getAddress()), 0, ethers.utils.parseEther('100'));
+      await minterAsAlice.deposit(0, ethers.utils.parseEther('100'));
 
-      // 4. Bob try to withdraw from the pool
-      // Bob shuoldn't do that, he can get yield but not the underlaying
-      await expect(minterAsBob.withdrawAll((await bob.getAddress()), 0)).to.be.revertedWith("only funder");
+      // 4. withdrawAll should return all deposited funds to Alice
+      await minterAsAlice.withdrawAll(0);
+      expect(await stoken0AsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.eq(ethers.utils.parseEther('400'));
     });
 
-    it('should revert when 2 accounts try to fund the same user', async () => {
-      // 1. Mint STOKEN0 for staking
-      await stoken0AsDeployer.mint((await alice.getAddress()), ethers.utils.parseEther('400'));
-      await stoken0AsDeployer.mint((await dev.getAddress()), ethers.utils.parseEther('100'));
-
-      // 2. Add STOKEN0 to the minter pool
-      await minterAsDeployer.addPool(1, stakingTokens[0].address, false);
-
-      // 3. Deposit STOKEN0 to the STOKEN0 pool
-      await stoken0AsAlice.approve(minter.address, ethers.utils.parseEther('100'));
-      await minterAsAlice.deposit((await bob.getAddress()), 0, ethers.utils.parseEther('100'));
-
-      // 4. Dev try to deposit to the pool on the bahalf of Bob
-      // Dev should get revert tx as this will fuck up the tracking
-      await stoken0AsDev.approve(minter.address, ethers.utils.parseEther("100"));
-      await expect(minterAsDev.deposit((await bob.getAddress()), 0, ethers.utils.parseEther('1'))).to.be.revertedWith('bad sof');
-    });
-
-    it('should harvest yield from the position opened by funder', async () => {
+    it('should harvest yield from the position opened by sender', async () => {
       // 1. Mint STOKEN0 for staking
       await stoken0AsDeployer.mint((await alice.getAddress()), ethers.utils.parseEther('400'));
 
@@ -179,19 +162,42 @@ describe("Minter", () => {
 
       // 3. Deposit STOKEN0 to the STOKEN0 pool
       await stoken0AsAlice.approve(minter.address, ethers.utils.parseEther('100'));
-      await minterAsAlice.deposit((await bob.getAddress()), 0, ethers.utils.parseEther('100'));
+      await minterAsAlice.deposit(0, ethers.utils.parseEther('100'));
 
       // 4. Move 1 Block so there is some pending
       await minterAsDeployer.massUpdatePools();
-      expect(await minterAsBob.pendingRewards(0, (await bob.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('5000'));
+      expect(await minterAsAlice.pendingRewards(0, (await alice.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('5000'));
 
       // 5. Harvest all yield
-      await minterAsBob.harvest(0);
+      await minterAsAlice.harvest(0);
 
-      expect(await bundleToken.balanceOf((await bob.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('10000'));
+      expect(await bundleToken.balanceOf((await alice.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('10000'));
     });
 
-    it('should distribute rewards according to the alloc point', async() => {
+    it('should reset all rewards on emergency withdrawal', async () => {
+        // 1. Mint STOKEN0 for staking
+        await stoken0AsDeployer.mint((await alice.getAddress()), ethers.utils.parseEther('400'));
+
+        // 2. Add STOKEN0 to the minter pool
+        await minterAsDeployer.addPool(1, stakingTokens[0].address, false);
+
+        // 3. Deposit STOKEN0 to the STOKEN0 pool
+        await stoken0AsAlice.approve(minter.address, ethers.utils.parseEther('100'));
+        await minterAsAlice.deposit(0, ethers.utils.parseEther('100'));
+
+        // 4. Move 1 Block so there is some pending
+        await minterAsDeployer.massUpdatePools();
+        expect(await minterAsAlice.pendingRewards(0, (await alice.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('5000'));
+
+        // 5. Emergency withdraw
+        await minterAsAlice.emergencyWithdraw(0);
+        const userInfo = await minterAsAlice.userInfo(0, (await alice.getAddress()));
+        expect(userInfo.amount).to.be.bignumber.eq(BigNumber.from('0'));
+        expect(userInfo.bonusDebt).to.be.bignumber.eq(BigNumber.from('0'));
+        expect(userInfo.rewardDebt).to.be.bignumber.eq(BigNumber.from('0'));
+    })
+
+    it('should distribute rewards according to the alloc point', async () => {
       // 1. Mint STOKEN0 and STOKEN1 for staking
       await stoken0AsDeployer.mint((await alice.getAddress()), ethers.utils.parseEther('100'));
       await stoken1AsDeployer.mint((await alice.getAddress()), ethers.utils.parseEther('50'));
@@ -202,11 +208,11 @@ describe("Minter", () => {
 
       // 3. Deposit STOKEN0 to the STOKEN0 pool
       await stoken0AsAlice.approve(minter.address, ethers.utils.parseEther('100'));
-      await minterAsAlice.deposit((await alice.getAddress()), 0, ethers.utils.parseEther('100'));
+      await minterAsAlice.deposit(0, ethers.utils.parseEther('100'));
 
       // 4. Deposit STOKEN1 to the STOKEN1 pool
       await stoken1AsAlice.approve(minter.address, ethers.utils.parseEther('50'));
-      await minterAsAlice.deposit((await alice.getAddress()), 1, ethers.utils.parseEther('50'));
+      await minterAsAlice.deposit(1, ethers.utils.parseEther('50'));
 
       // 4. Move 1 Block so there is some pending
       await minterAsDeployer.massUpdatePools();
@@ -221,7 +227,7 @@ describe("Minter", () => {
       expect(await bundleToken.balanceOf((await alice.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('17500'));
     })
 
-    it('should work', async() => {
+    it('should work', async () => {
       // 1. Mint STOKEN0 for staking
       await stoken0AsDeployer.mint((await alice.getAddress()), ethers.utils.parseEther('400'));
       await stoken0AsDeployer.mint((await bob.getAddress()), ethers.utils.parseEther('100'));
@@ -231,7 +237,7 @@ describe("Minter", () => {
 
       // 3. Deposit STOKEN0 to the STOKEN0 pool
       await stoken0AsAlice.approve(minter.address, ethers.utils.parseEther('100'));
-      await minterAsAlice.deposit((await alice.getAddress()), 0, ethers.utils.parseEther('100'));
+      await minterAsAlice.deposit(0, ethers.utils.parseEther('100'));
 
       // 4. Trigger random update pool to make 1 more block mine
       await minterAsAlice.massUpdatePools();
@@ -254,7 +260,7 @@ describe("Minter", () => {
       // 9. Bob come in and join the party
       // 2 blocks are mined here, hence Alice should get 10,000 BDL more
       await stoken0AsBob.approve(minter.address, ethers.utils.parseEther('100'));
-      await minterAsBob.deposit((await bob.getAddress()), 0, ethers.utils.parseEther('100'));
+      await minterAsBob.deposit(0, ethers.utils.parseEther('100'));
 
       expect(await minter.pendingRewards(0, (await alice.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('10000'));
       expect(await bundleToken.balanceOf((await dev.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('2500'));
@@ -297,7 +303,7 @@ describe("Minter", () => {
 
       // 15. Alice wants more BDL so she deposits 300 STOKEN0 more for a total of 400 relative to Bob's 100
       await stoken0AsAlice.approve(minter.address, ethers.utils.parseEther('300'));
-      await minterAsAlice.deposit((await alice.getAddress()), 0, ethers.utils.parseEther('300'));
+      await minterAsAlice.deposit(0, ethers.utils.parseEther('300'));
 
       // Alice deposit to the same pool as she already has some STOKEN0 in it
       // Hence, Alice will get auto-harvest
@@ -395,7 +401,7 @@ describe("Minter", () => {
       // Alice should get 121,500 + 4,000 + 4,000 = 129,500 BDL
       // Bob pending should be 1,000 BDL
       // Dev get another 500 BDL
-      await minterAsAlice.withdrawAll((await alice.getAddress()), 0);
+      await minterAsAlice.withdrawAll(0);
 
       expect(await minter.pendingRewards(0, (await alice.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('0'));
       expect(await minter.pendingRewards(0, (await bob.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('1000'));
@@ -414,7 +420,7 @@ describe("Minter", () => {
       // Bob pending should be 0 BDL
       // Bob should have 24,500 + 1,000 + 5,000 (from block where alice left) = 40,500 BDL in his account
       // Dev get another 500 BDL
-      await minterAsBob.withdrawAll((await bob.getAddress()), 0);
+      await minterAsBob.withdrawAll(0);
 
       expect(await minter.pendingRewards(0, (await alice.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('0'));
       expect(await minter.pendingRewards(0, (await bob.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('0'));
@@ -428,8 +434,8 @@ describe("Minter", () => {
       expect(await bundleToken.lockOf((await dev.getAddress()))).to.be.bignumber.eq(ethers.utils.parseEther('22500'));
 
       // Locked BDL will be released on the next block
-      // so let's move four block to get all tokens unlocked
-      for(let i = 0; i < 6; i++) {
+      // so let's move ten block to get all tokens unlocked
+      for(let i = 0; i < 10; i++) {
         // random contract call to make block mined
         await stoken0AsDeployer.mint((await deployer.getAddress()), ethers.utils.parseEther('1'));
       }
