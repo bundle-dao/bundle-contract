@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./interfaces/IMinterDetailed.sol";
 
-contract Shield is Ownable {
+contract MinterGuard is Ownable {
   using SafeMath for uint256;
 
   IMinterDetailed public minter;
@@ -46,8 +46,8 @@ contract Shield is Ownable {
   /// @param _to Mint to which address
   /// @param _amount Amount to be minted
   function mintWarchest(address _to, uint256 _amount) external onlyOwner {
-    require(mintCount.add(_amount) <= mintLimit, "Shield::mintWarchest:: mint exceeded mintLimit");
-    require(_amount <= individualMintLimit, "Shield::mintWarchest:: mint exceeded individualMintLimit");
+    require(mintCount.add(_amount) <= mintLimit, "MinterGuard::mintWarchest:: mint exceeded mintLimit");
+    require(_amount <= individualMintLimit, "MinterGuard::mintWarchest:: mint exceeded individualMintLimit");
     minter.manualMint(_to, _amount);
     mintCount = mintCount.add(_amount);
     emit MintWarchest(_to, _amount);
