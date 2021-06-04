@@ -17,7 +17,7 @@ Subject to the GPL-3.0 license
 
 contract BTokenBase is BNum {
 
-    mapping(address => uint)                   internal _balance;
+    mapping(address => uint) internal _balance;
     mapping(address => mapping(address=>uint)) internal _allowance;
     uint internal _totalSupply;
 
@@ -55,31 +55,38 @@ contract BTokenBase is BNum {
 
 contract BToken is BTokenBase, IERC20 {
 
-    string  private _name     = "Balancer Pool Token";
-    string  private _symbol   = "BPT";
-    uint8   private _decimals = 18;
+    uint8 private _decimals = 18;
+    string private _name;
+    string private _symbol;
 
-    function name() public view returns (string memory) {
+    function _initialize(string memory name, string memory symbol) internal {
+        require(bytes(_name).length == 0, "ERR_BTOKEN_INITIALIZED");
+        require(bytes(name).length != 0 && bytes(symbol).length != 0, "ERR_BAD_PARAMS");
+        _name = name;
+        _symbol = symbol;
+    }
+
+    function name() external override view returns (string memory) {
         return _name;
     }
 
-    function symbol() public view returns (string memory) {
+    function symbol() external override view returns (string memory) {
         return _symbol;
     }
 
-    function decimals() public view returns(uint8) {
+    function decimals() external override view returns(uint8) {
         return _decimals;
     }
 
-    function allowance(address src, address dst) external view override returns (uint) {
+    function allowance(address src, address dst) external override view returns (uint) {
         return _allowance[src][dst];
     }
 
-    function balanceOf(address whom) external view override returns (uint) {
+    function balanceOf(address whom) external override view returns (uint) {
         return _balance[whom];
     }
 
-    function totalSupply() public view override returns (uint) {
+    function totalSupply() public override view returns (uint) {
         return _totalSupply;
     }
 
