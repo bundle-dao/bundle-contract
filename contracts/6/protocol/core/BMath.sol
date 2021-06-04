@@ -123,7 +123,7 @@ contract BMath is BConst, BNum {
         returns (uint poolAmountOut)
     {
         // Charge the trading fee for the proportion of tokenAi
-        ///  which is implicitly traded to the other pool tokens.
+        // which is implicitly traded to the other pool tokens.
         // That proportion is (1- weightTokenIn)
         // tokenAiAfterFee = tAi * (1 - (1-weightTi) * poolFee);
         uint normalizedWeight = bdiv(tokenWeightIn, totalWeight);

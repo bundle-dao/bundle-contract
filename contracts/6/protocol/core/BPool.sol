@@ -13,7 +13,7 @@ at commit hash f4ed5d65362a8d6cec21662fb6eae233b0babc1f.
 Subject to the GPL-3.0 license
 *************************************************************************************************/
 
-contract BPool is BBronze, BToken, BMath {
+contract BPool is BToken, BMath {
 
     struct Record {
         bool bound;   // is token bound to pool
@@ -22,7 +22,7 @@ contract BPool is BBronze, BToken, BMath {
         uint balance;
     }
 
-    event LOG_SWAP(
+    event LogSwap(
         address indexed caller,
         address indexed tokenIn,
         address indexed tokenOut,
@@ -30,26 +30,26 @@ contract BPool is BBronze, BToken, BMath {
         uint256         tokenAmountOut
     );
 
-    event LOG_JOIN(
+    event LogJoin(
         address indexed caller,
         address indexed tokenIn,
         uint256         tokenAmountIn
     );
 
-    event LOG_EXIT(
+    event LogExit(
         address indexed caller,
         address indexed tokenOut,
         uint256         tokenAmountOut
     );
 
-    event LOG_CALL(
+    event LogCall(
         bytes4  indexed sig,
         address indexed caller,
         bytes           data
     ) anonymous;
 
     modifier _logs_() {
-        emit LOG_CALL(msg.sig, msg.sender, msg.data);
+        emit LogCall(msg.sig, msg.sender, msg.data);
         _;
     }
 
@@ -379,7 +379,7 @@ contract BPool is BBronze, BToken, BMath {
             require(tokenAmountIn != 0, "ERR_MATH_APPROX");
             require(tokenAmountIn <= maxAmountsIn[i], "ERR_LIMIT_IN");
             _records[t].balance = badd(_records[t].balance, tokenAmountIn);
-            emit LOG_JOIN(msg.sender, t, tokenAmountIn);
+            emit LogJoin(msg.sender, t, tokenAmountIn);
             _pullUnderlying(t, msg.sender, tokenAmountIn);
         }
         _mintPoolShare(poolAmountOut);
@@ -410,7 +410,7 @@ contract BPool is BBronze, BToken, BMath {
             require(tokenAmountOut != 0, "ERR_MATH_APPROX");
             require(tokenAmountOut >= minAmountsOut[i], "ERR_LIMIT_OUT");
             _records[t].balance = bsub(_records[t].balance, tokenAmountOut);
-            emit LOG_EXIT(msg.sender, t, tokenAmountOut);
+            emit LogExit(msg.sender, t, tokenAmountOut);
             _pushUnderlying(t, msg.sender, tokenAmountOut);
         }
 
@@ -472,7 +472,7 @@ contract BPool is BBronze, BToken, BMath {
         require(spotPriceAfter <= maxPrice, "ERR_LIMIT_PRICE");
         require(spotPriceBefore <= bdiv(tokenAmountIn, tokenAmountOut), "ERR_MATH_APPROX");
 
-        emit LOG_SWAP(msg.sender, tokenIn, tokenOut, tokenAmountIn, tokenAmountOut);
+        emit LogSwap(msg.sender, tokenIn, tokenOut, tokenAmountIn, tokenAmountOut);
 
         _pullUnderlying(tokenIn, msg.sender, tokenAmountIn);
         _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
@@ -534,7 +534,7 @@ contract BPool is BBronze, BToken, BMath {
         require(spotPriceAfter <= maxPrice, "ERR_LIMIT_PRICE");
         require(spotPriceBefore <= bdiv(tokenAmountIn, tokenAmountOut), "ERR_MATH_APPROX");
 
-        emit LOG_SWAP(msg.sender, tokenIn, tokenOut, tokenAmountIn, tokenAmountOut);
+        emit LogSwap(msg.sender, tokenIn, tokenOut, tokenAmountIn, tokenAmountOut);
 
         _pullUnderlying(tokenIn, msg.sender, tokenAmountIn);
         _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
@@ -569,7 +569,7 @@ contract BPool is BBronze, BToken, BMath {
 
         inRecord.balance = badd(inRecord.balance, tokenAmountIn);
 
-        emit LOG_JOIN(msg.sender, tokenIn, tokenAmountIn);
+        emit LogJoin(msg.sender, tokenIn, tokenAmountIn);
 
         _mintPoolShare(poolAmountOut);
         _pushPoolShare(msg.sender, poolAmountOut);
@@ -605,7 +605,7 @@ contract BPool is BBronze, BToken, BMath {
 
         inRecord.balance = badd(inRecord.balance, tokenAmountIn);
 
-        emit LOG_JOIN(msg.sender, tokenIn, tokenAmountIn);
+        emit LogJoin(msg.sender, tokenIn, tokenAmountIn);
 
         _mintPoolShare(poolAmountOut);
         _pushPoolShare(msg.sender, poolAmountOut);
@@ -642,7 +642,7 @@ contract BPool is BBronze, BToken, BMath {
 
         uint exitFee = bmul(poolAmountIn, EXIT_FEE);
 
-        emit LOG_EXIT(msg.sender, tokenOut, tokenAmountOut);
+        emit LogExit(msg.sender, tokenOut, tokenAmountOut);
 
         _pullPoolShare(msg.sender, poolAmountIn);
         _burnPoolShare(bsub(poolAmountIn, exitFee));
@@ -680,7 +680,7 @@ contract BPool is BBronze, BToken, BMath {
 
         uint exitFee = bmul(poolAmountIn, EXIT_FEE);
 
-        emit LOG_EXIT(msg.sender, tokenOut, tokenAmountOut);
+        emit LogExit(msg.sender, tokenOut, tokenAmountOut);
 
         _pullPoolShare(msg.sender, poolAmountIn);
         _burnPoolShare(bsub(poolAmountIn, exitFee));

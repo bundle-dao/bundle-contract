@@ -2,6 +2,7 @@
 pragma solidity 0.6.12;
 
 import "./BNum.sol";
+import "../interfaces/IERC20.sol";
 
 /************************************************************************************************
 Originally forked from https://github.com/balancer-labs/balancer-core/
@@ -13,21 +14,6 @@ Subject to the GPL-3.0 license
 *************************************************************************************************/
 
 // Highly opinionated token implementation
-
-interface IERC20 {
-    event Approval(address indexed src, address indexed dst, uint amt);
-    event Transfer(address indexed src, address indexed dst, uint amt);
-
-    function totalSupply() external view returns (uint);
-    function balanceOf(address whom) external view returns (uint);
-    function allowance(address src, address dst) external view returns (uint);
-
-    function approve(address dst, uint amt) external returns (bool);
-    function transfer(address dst, uint amt) external returns (bool);
-    function transferFrom(
-        address src, address dst, uint amt
-    ) external returns (bool);
-}
 
 contract BTokenBase is BNum {
 
@@ -85,19 +71,19 @@ contract BToken is BTokenBase, IERC20 {
         return _decimals;
     }
 
-    function allowance(address src, address dst) external view returns (uint) {
+    function allowance(address src, address dst) external view override returns (uint) {
         return _allowance[src][dst];
     }
 
-    function balanceOf(address whom) external view returns (uint) {
+    function balanceOf(address whom) external view override returns (uint) {
         return _balance[whom];
     }
 
-    function totalSupply() public view returns (uint) {
+    function totalSupply() public view override returns (uint) {
         return _totalSupply;
     }
 
-    function approve(address dst, uint amt) external returns (bool) {
+    function approve(address dst, uint amt) external override returns (bool) {
         _allowance[msg.sender][dst] = amt;
         emit Approval(msg.sender, dst, amt);
         return true;
@@ -120,12 +106,12 @@ contract BToken is BTokenBase, IERC20 {
         return true;
     }
 
-    function transfer(address dst, uint amt) external returns (bool) {
+    function transfer(address dst, uint amt) external override returns (bool) {
         _move(msg.sender, dst, amt);
         return true;
     }
 
-    function transferFrom(address src, address dst, uint amt) external returns (bool) {
+    function transferFrom(address src, address dst, uint amt) external override returns (bool) {
         require(msg.sender == src || amt <= _allowance[src][msg.sender], "ERR_BTOKEN_BAD_CALLER");
         _move(src, dst, amt);
         if (msg.sender != src && _allowance[src][msg.sender] != uint256(-1)) {

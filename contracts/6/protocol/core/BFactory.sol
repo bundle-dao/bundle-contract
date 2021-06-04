@@ -14,13 +14,13 @@ at commit hash f4ed5d65362a8d6cec21662fb6eae233b0babc1f.
 Subject to the GPL-3.0 license
 *************************************************************************************************/
 
-contract BFactory is BBronze {
-    event LOG_NEW_POOL(
+contract BFactory {
+    event LogNewPool(
         address indexed caller,
         address indexed pool
     );
 
-    event LOG_BLABS(
+    event LogBlabs(
         address indexed caller,
         address indexed blabs
     );
@@ -39,7 +39,7 @@ contract BFactory is BBronze {
     {
         BPool bpool = new BPool();
         _isBPool[address(bpool)] = true;
-        emit LOG_NEW_POOL(msg.sender, address(bpool));
+        emit LogNewPool(msg.sender, address(bpool));
         bpool.setController(msg.sender);
         return bpool;
     }
@@ -61,7 +61,7 @@ contract BFactory is BBronze {
         external
     {
         require(msg.sender == _blabs, "ERR_NOT_BLABS");
-        emit LOG_BLABS(msg.sender, b);
+        emit LogBlabs(msg.sender, b);
         _blabs = b;
     }
 
