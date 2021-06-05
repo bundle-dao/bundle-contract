@@ -59,7 +59,7 @@ contract BToken is BTokenBase, IERC20 {
     string private _name;
     string private _symbol;
 
-    function _initialize(string memory name, string memory symbol) internal {
+    function _initializeToken(string memory name, string memory symbol) internal {
         require(bytes(_name).length == 0, "ERR_BTOKEN_INITIALIZED");
         require(bytes(name).length != 0 && bytes(symbol).length != 0, "ERR_BAD_PARAMS");
         _name = name;
