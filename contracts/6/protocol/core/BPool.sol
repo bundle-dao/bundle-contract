@@ -22,7 +22,7 @@ contract BPool is Initializable, BToken, BMath {
         bool ready;
         uint256 denorm;            // denormalized weight
         uint256 targetDenorm;
-        uint256 startBlock;
+        uint256 targetBlock;
         uint8 index;              // private
         uint256 balance;
     }
@@ -153,7 +153,7 @@ contract BPool is Initializable, BToken, BMath {
                 ready: true,
                 denorm: denorm,
                 targetDenorm: denorm,
-                startBlock: 0,
+                targetBlock: 0,
                 index: uint8(i),
                 balance: balance
             });
@@ -348,7 +348,7 @@ contract BPool is Initializable, BToken, BMath {
             ready: false,
             denorm: 0,
             targetDenorm: denorm,
-            startBlock: block.number,
+            targetBlock: badd(block.number, TARGET_BLOCK_DELTA),
             index: uint8(_tokens.length),
             balance: 0
         });
@@ -380,7 +380,7 @@ contract BPool is Initializable, BToken, BMath {
             index: 0,
             denorm: 0,
             targetDenorm: 0,
-            startBlock: 0,
+            targetBlock: 0,
             balance: 0
         });
 
@@ -397,7 +397,7 @@ contract BPool is Initializable, BToken, BMath {
         require(denorm >= MIN_WEIGHT || denorm == 0, "ERR_MIN_WEIGHT");
         require(denorm <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
         _records[token].targetDenorm = denorm;
-        _records[token].startBlock = block.number;
+        _records[token].targetBlock = badd(block.number, TARGET_BLOCK_DELTA);
     }
 
     function _updateDenorm(address token)
@@ -406,7 +406,7 @@ contract BPool is Initializable, BToken, BMath {
         _lock_
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
-        uint256 targetBlock = badd(_records[token].startBlock, TARGET_BLOCK_DELTA);
+        uint256 targetBlock = _records[token].targetBlock;
 
         if (block.number < targetBlock) {
             uint256 delta = bsub(_records[token].targetDenorm, _records[token].denorm);
