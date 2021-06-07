@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.6.12;
+pragma experimental ABIEncoderV2;
 
 import "./BToken.sol";
 import "./BMath.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
 
 /************************************************************************************************
 Originally forked from https://github.com/balancer-labs/balancer-core/
@@ -16,6 +18,7 @@ Subject to the GPL-3.0 license
 *************************************************************************************************/
 
 contract Bundle is Initializable, BToken, BMath {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct Record {
         bool bound;               // is token bound to pool
@@ -862,15 +865,13 @@ contract Bundle is Initializable, BToken, BMath {
     function _pullUnderlying(address erc20, address from, uint256 amount)
         internal
     {
-        bool xfer = IERC20(erc20).transferFrom(from, address(this), amount);
-        require(xfer, "ERR_ERC20_FALSE");
+        IERC20Upgradeable(erc20).safeTransferFrom(from, address(this), amount);
     }
 
     function _pushUnderlying(address erc20, address to, uint256 amount)
         internal
     {
-        bool xfer = IERC20(erc20).transfer(to, amount);
-        require(xfer, "ERR_ERC20_FALSE");
+        IERC20Upgradeable(erc20).safeTransfer(to, amount);
     }
 
     function _pullPoolShare(address from, uint256 amount)
@@ -896,5 +897,4 @@ contract Bundle is Initializable, BToken, BMath {
     {
         _burn(amount);
     }
-
 }
