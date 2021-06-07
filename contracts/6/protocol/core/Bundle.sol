@@ -23,6 +23,7 @@ contract Bundle is Initializable, BToken, BMath {
         uint256 denorm;            // denormalized weight
         uint256 targetDenorm;
         uint256 targetBlock;
+        uint256 lastUpdateBlock;
         uint8 index;              // private
         uint256 balance;
     }
@@ -182,6 +183,7 @@ contract Bundle is Initializable, BToken, BMath {
                 denorm: denorm,
                 targetDenorm: denorm,
                 targetBlock: 0,
+                lastUpdateBlock: 0,
                 index: uint8(i),
                 balance: balance
             });
@@ -461,7 +463,6 @@ contract Bundle is Initializable, BToken, BMath {
     function _bind(address token, uint256 minBalance, uint256 denorm)
         internal
         _logs_
-        _lock_
     {
         require(!_records[token].bound, "ERR_IS_BOUND");
         require(denorm >= MIN_WEIGHT, "ERR_MIN_WEIGHT");
@@ -474,6 +475,7 @@ contract Bundle is Initializable, BToken, BMath {
             denorm: 0,
             targetDenorm: denorm,
             targetBlock: badd(block.number, TARGET_BLOCK_DELTA),
+            lastUpdateBlock: block.number,
             index: uint8(_tokens.length),
             balance: 0
         });
@@ -490,7 +492,6 @@ contract Bundle is Initializable, BToken, BMath {
     function _unbind(address token)
         internal
         _logs_
-        _lock_
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
 
@@ -511,6 +512,7 @@ contract Bundle is Initializable, BToken, BMath {
             denorm: 0,
             targetDenorm: 0,
             targetBlock: 0,
+            lastUpdateBlock: 0,
             balance: 0
         });
 
@@ -528,13 +530,13 @@ contract Bundle is Initializable, BToken, BMath {
     function _setTargetDenorm(address token, uint256 denorm) 
         internal
         _logs_
-        _lock_
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
         require(denorm >= MIN_WEIGHT || denorm == 0, "ERR_MIN_WEIGHT");
         require(denorm <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
         _records[token].targetDenorm = denorm;
         _records[token].targetBlock = badd(block.number, TARGET_BLOCK_DELTA);
+        _records[token].lastUpdateBlock = block.number;
     }
 
     /**
@@ -545,32 +547,31 @@ contract Bundle is Initializable, BToken, BMath {
     function _updateDenorm(address token)
         internal
         _logs_
-        _lock_
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
-        uint256 targetBlock = _records[token].targetBlock;
+        Record memory record = _records[token];
+        uint256 targetBlock = record.targetBlock;
 
-        if (block.number < targetBlock) {
-            uint256 delta = bsub(_records[token].targetDenorm, _records[token].denorm);
-            uint256 denorm = bdiv(bmul(delta, block.number), bsub(targetBlock, block.number));
+        if (block.number < targetBlock && record.denorm != record.targetDenorm) {
+            uint256 lastUpdateBlock = record.lastUpdateBlock;
+            uint256 blockDelta = bsub(block.number, lastUpdateBlock);
+            uint256 blocksLeft = bsub(lastUpdateBlock, block.number);
 
-            if (denorm < MIN_WEIGHT) {
-                _unbind(token);
+            if (record.denorm > record.targetDenorm) {
+                uint256 denormDelta = bsub(record.denorm, record.targetDenorm);
+                uint256 diff = bdiv(bmul(denormDelta, blockDelta), blocksLeft);
+                _records[token].denorm = bsub(record.denorm, diff);
+                _totalWeight = bsub(_totalWeight, diff);
             } else {
-                // Adjust total weight
-                if (_records[token].denorm > denorm) {
-                    uint256 diff = bsub(_records[token].denorm, denorm);
-                    _totalWeight = bsub(_totalWeight, diff);
-                } else {
-                    uint256 diff = bsub(denorm, _records[token].denorm);
-                    _totalWeight = badd(_totalWeight, diff);
-                }
-
-                _records[token].denorm = denorm;
+                uint256 denormDelta = bsub(record.targetDenorm, record.denorm);
+                uint256 diff = bdiv(bmul(denormDelta, blockDelta), blocksLeft);
+                _records[token].denorm = badd(record.denorm, diff);
+                _totalWeight = badd(_totalWeight, diff);
             }
-        } else {
-            // If gte target block, ensure denorm is set to the target
+        } else if (record.denorm != record.targetDenorm || record.lastUpdateBlock != record.targetBlock) {
+            // Ensure denorm set to target if equal, or past targetBlock
             _records[token].denorm = _records[token].targetDenorm;
+            _records[token].lastUpdateBlock = _records[token].targetBlock;
         }
     }
 
@@ -601,7 +602,8 @@ contract Bundle is Initializable, BToken, BMath {
                 uint256 balRatio = bdiv(additionalBalance, currBalance);
                 uint256 denorm = badd(MIN_WEIGHT, bmul(MIN_WEIGHT, balRatio));
                 _records[token].denorm = denorm;
-                _records[token].targetBlock = block.number;
+                _records[token].lastUpdateBlock = block.number;
+                _records[token].targetBlock = badd(block.number, TARGET_BLOCK_DELTA);
                 _totalWeight = badd(_totalWeight, _records[token].denorm);
                 // Remove the minimum balance record
                 _minBalances[token] = 0;
@@ -611,12 +613,16 @@ contract Bundle is Initializable, BToken, BMath {
                 uint256 weightPremium = bmul(MIN_WEIGHT / 10, realToMinRatio);
                 _records[token].denorm = badd(MIN_WEIGHT, weightPremium);
             }
+            _records[token].balance = balance;
         } else {
             // Update denorm if token is ready
             _updateDenorm(token);
+            _records[token].balance = balance;
+            // Always check if token needs to be unbound
+            if (_records[token].denorm < MIN_WEIGHT) {
+                _unbind(token);
+            }
         }
-        // Regardless of whether the token is initialized, store the actual new balance.
-        _records[token].balance = balance;
     }
 
     /**
@@ -722,21 +728,22 @@ contract Bundle is Initializable, BToken, BMath {
         external
         _logs_
         _lock_
+        _public_
         _rebalance_
         returns (uint256 tokenAmountOut, uint256 spotPriceAfter)
     {
-
         require(_records[tokenIn].bound, "ERR_NOT_BOUND");
         require(_records[tokenOut].bound, "ERR_NOT_BOUND");
-        require(_publicSwap, "ERR_SWAP_NOT_PUBLIC");
+        require(_records[tokenOut].bound, "ERR_NOT_READY");
 
-        Record storage inRecord = _records[address(tokenIn)];
-        Record storage outRecord = _records[address(tokenOut)];
+        Record memory inRecord = _records[tokenIn];
+        uint256 inRecordBalance = _getBalance(tokenIn);
+        Record memory outRecord = _records[tokenOut];
 
         require(tokenAmountIn <= bmul(inRecord.balance, MAX_IN_RATIO), "ERR_MAX_IN_RATIO");
 
         uint256 spotPriceBefore = calcSpotPrice(
-                                    inRecord.balance,
+                                    inRecordBalance,
                                     inRecord.denorm,
                                     outRecord.balance,
                                     outRecord.denorm,
@@ -745,7 +752,7 @@ contract Bundle is Initializable, BToken, BMath {
         require(spotPriceBefore <= maxPrice, "ERR_BAD_LIMIT_PRICE");
 
         tokenAmountOut = calcOutGivenIn(
-                            inRecord.balance,
+                            inRecordBalance,
                             inRecord.denorm,
                             outRecord.balance,
                             outRecord.denorm,
@@ -754,11 +761,15 @@ contract Bundle is Initializable, BToken, BMath {
                         );
         require(tokenAmountOut >= minAmountOut, "ERR_LIMIT_OUT");
 
-        inRecord.balance = badd(inRecord.balance, tokenAmountIn);
-        outRecord.balance = bsub(outRecord.balance, tokenAmountOut);
+        _pullUnderlying(tokenIn, msg.sender, tokenAmountIn);
+        _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
+
+        // Update tokens
+        _updateToken(tokenIn, badd(inRecord.balance, tokenAmountIn));
+        _updateToken(tokenIn, bsub(inRecord.balance, tokenAmountIn));
 
         spotPriceAfter = calcSpotPrice(
-                                inRecord.balance,
+                                inRecordBalance,
                                 inRecord.denorm,
                                 outRecord.balance,
                                 outRecord.denorm,
@@ -769,9 +780,6 @@ contract Bundle is Initializable, BToken, BMath {
         require(spotPriceBefore <= bdiv(tokenAmountIn, tokenAmountOut), "ERR_MATH_APPROX");
 
         emit LogSwap(msg.sender, tokenIn, tokenOut, tokenAmountIn, tokenAmountOut);
-
-        _pullUnderlying(tokenIn, msg.sender, tokenAmountIn);
-        _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
 
         return (tokenAmountOut, spotPriceAfter);
     }
@@ -786,20 +794,22 @@ contract Bundle is Initializable, BToken, BMath {
         external
         _logs_
         _lock_
+        _public_
         _rebalance_
         returns (uint256 tokenAmountIn, uint256 spotPriceAfter)
     {
         require(_records[tokenIn].bound, "ERR_NOT_BOUND");
         require(_records[tokenOut].bound, "ERR_NOT_BOUND");
-        require(_publicSwap, "ERR_SWAP_NOT_PUBLIC");
+        require(_records[tokenOut].bound, "ERR_NOT_READY");
 
-        Record storage inRecord = _records[address(tokenIn)];
-        Record storage outRecord = _records[address(tokenOut)];
+        Record memory inRecord = _records[tokenIn];
+        uint256 inRecordBalance = _getBalance(tokenIn);
+        Record memory outRecord = _records[tokenOut];
 
         require(tokenAmountOut <= bmul(outRecord.balance, MAX_OUT_RATIO), "ERR_MAX_OUT_RATIO");
 
         uint256 spotPriceBefore = calcSpotPrice(
-                                    inRecord.balance,
+                                    inRecordBalance,
                                     inRecord.denorm,
                                     outRecord.balance,
                                     outRecord.denorm,
@@ -808,7 +818,7 @@ contract Bundle is Initializable, BToken, BMath {
         require(spotPriceBefore <= maxPrice, "ERR_BAD_LIMIT_PRICE");
 
         tokenAmountIn = calcInGivenOut(
-                            inRecord.balance,
+                            inRecordBalance,
                             inRecord.denorm,
                             outRecord.balance,
                             outRecord.denorm,
@@ -817,11 +827,18 @@ contract Bundle is Initializable, BToken, BMath {
                         );
         require(tokenAmountIn <= maxAmountIn, "ERR_LIMIT_IN");
 
+        _pullUnderlying(tokenIn, msg.sender, tokenAmountIn);
+        _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
+
+        // Update tokens
+        _updateToken(tokenIn, badd(inRecord.balance, tokenAmountOut));
+        _updateToken(tokenIn, bsub(inRecord.balance, tokenAmountOut));
+
         inRecord.balance = badd(inRecord.balance, tokenAmountIn);
         outRecord.balance = bsub(outRecord.balance, tokenAmountOut);
 
         spotPriceAfter = calcSpotPrice(
-                                inRecord.balance,
+                                inRecordBalance,
                                 inRecord.denorm,
                                 outRecord.balance,
                                 outRecord.denorm,
@@ -832,9 +849,6 @@ contract Bundle is Initializable, BToken, BMath {
         require(spotPriceBefore <= bdiv(tokenAmountIn, tokenAmountOut), "ERR_MATH_APPROX");
 
         emit LogSwap(msg.sender, tokenIn, tokenOut, tokenAmountIn, tokenAmountOut);
-
-        _pullUnderlying(tokenIn, msg.sender, tokenAmountIn);
-        _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
 
         return (tokenAmountIn, spotPriceAfter);
     }
