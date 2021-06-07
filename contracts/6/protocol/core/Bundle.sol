@@ -134,6 +134,10 @@ contract Bundle is Initializable, BToken, BMath {
 
     /* ========== Initialization ========== */
 
+    /**
+     * @dev Initializer function for upgradeability
+     * TODO: Set unbound handler on initialization
+     */
     function initialize(address controller, address rebalancer, string calldata name, string calldata symbol) 
         external 
         initializer
@@ -145,6 +149,7 @@ contract Bundle is Initializable, BToken, BMath {
         _initializeToken(name, symbol);
     }
 
+    /** @dev Setup function to initialize the pool after contract creation */
     function setup(
         address[] calldata tokens,
         uint256[] calldata balances,
@@ -366,6 +371,12 @@ contract Bundle is Initializable, BToken, BMath {
 
     /* ==========  External Token Weighting  ========== */
 
+    /**
+     * @dev Adjust weights for existing tokens
+     * @param tokens A set of token addresses to adjust
+     * @param targetDenorms A set of denorms to linearly update to
+     */
+
     function reweighTokens(
         address[] calldata tokens,
         uint256[] calldata targetDenorms
@@ -381,13 +392,12 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     /**
-    * @dev Update the underlying assets held by the pool and their associated
-    * weights. Tokens which are not currently bound will be gradually added
-    * as they are swapped in to reach the provided minimum balances, which must
-    * be an amount of tokens worth the minimum weight of the total pool value.
-    * If a currently bound token is not received in this call, the token's
-    * desired weight will be set to 0.
-    */
+     * @dev Reindex the pool on a new set of tokens
+     *
+     * @param tokens A set of token addresses to be indexed
+     * @param targetDenorms A set of denorms to linearly update to
+     * @param minBalances Minimum balance thresholds for unbound assets
+     */
     function reindexTokens(
         address[] calldata tokens,
         uint256[] calldata targetDenorms,
@@ -404,19 +414,16 @@ contract Bundle is Initializable, BToken, BMath {
         uint256 unbindCounter = 0;
         uint256 tLen = _tokens.length;
         bool[] memory receivedIndices = new bool[](tLen);
-
-        // We need to read token records in two separate loops, so
-        // write them to memory to avoid duplicate storage reads.
         Record[] memory records = new Record[](tokens.length);
 
-        // Read all the records from storage and mark which of the existing tokens
-        // were represented in the reindex call.
+        // Mark which tokens on reindexing call are already in pool
         for (uint256 i = 0; i < tokens.length; i++) {
             records[i] = _records[tokens[i]];
             if (records[i].bound) receivedIndices[records[i].index] = true;
         }
 
-        // If any bound tokens were not sent in this call, set their desired weights to 0.
+        // If any bound tokens were not sent in this call
+        // set their target weights to 0 and increment counter
         for (uint256 i = 0; i < tLen; i++) {
             if (!receivedIndices[i]) {
                 _setTargetDenorm(_tokens[i], 0);
@@ -444,7 +451,14 @@ contract Bundle is Initializable, BToken, BMath {
 
     /* ==========  Internal Token Weighting  ========== */
 
-    function _bind(address token, uint256 balance, uint256 denorm)
+    /**
+     * @dev Bind a new token to the pool, may cause tokens to exceed max assets temporarily
+     *
+     * @param token Token to add to the pool
+     * @param minBalance A set of denorms to linearly update to
+     * @param denorm The target denorm to gradually adjust to
+     */
+    function _bind(address token, uint256 minBalance, uint256 denorm)
         internal
         _logs_
         _lock_
@@ -452,7 +466,7 @@ contract Bundle is Initializable, BToken, BMath {
         require(!_records[token].bound, "ERR_IS_BOUND");
         require(denorm >= MIN_WEIGHT, "ERR_MIN_WEIGHT");
         require(denorm <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
-        require(balance >= MIN_BALANCE, "ERR_MIN_BALANCE");
+        require(minBalance >= MIN_BALANCE, "ERR_MIN_BALANCE");
 
         _records[token] = Record({
             bound: true,
@@ -465,9 +479,14 @@ contract Bundle is Initializable, BToken, BMath {
         });
 
         _tokens.push(token);
-        _minBalances[token] = balance;
+        _minBalances[token] = minBalance;
     }
 
+    /**
+     * @dev Unbind a token from the pool
+     *
+     * @param token Token to remove from the pool
+     */
     function _unbind(address token)
         internal
         _logs_
@@ -499,6 +518,13 @@ contract Bundle is Initializable, BToken, BMath {
         _pushUnderlying(token, msg.sender, tokenBalance);
     }
 
+    /**
+     * @dev Set the target denorm of a token
+     * linearly adjusts by block + TARGET_BLOCK_DELTA
+     *
+     * @param token Token to adjust
+     * @param denorm Target denorm to set
+     */
     function _setTargetDenorm(address token, uint256 denorm) 
         internal
         _logs_
@@ -511,6 +537,11 @@ contract Bundle is Initializable, BToken, BMath {
         _records[token].targetBlock = badd(block.number, TARGET_BLOCK_DELTA);
     }
 
+    /**
+     * @dev Updates the denorm on a given token to match target
+     *
+     * @param token Token to update denorm for
+     */
     function _updateDenorm(address token)
         internal
         _logs_
@@ -543,6 +574,12 @@ contract Bundle is Initializable, BToken, BMath {
         }
     }
 
+    /**
+     * @dev Performs a full update on a tokens state
+     *
+     * @param token Token to adjust
+     * @param balance New token balance
+     */
     function _updateToken(
         address token,
         uint256 balance
@@ -582,6 +619,11 @@ contract Bundle is Initializable, BToken, BMath {
         _records[token].balance = balance;
     }
 
+    /**
+     * @dev Internal view to get the current treatment balance for a token
+     *
+     * @param token Token to get balance for
+     */
     function _getBalance(
         address token
     )
