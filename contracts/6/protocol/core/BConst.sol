@@ -20,6 +20,10 @@ contract BConst {
     uint internal constant MAX_FEE            = BONE / 10;
     uint internal constant EXIT_FEE           = 0;
 
+    uint internal constant MAX_STREAMING_FEE  = (4 * BONE) / 10**2;
+    uint internal constant INIT_STREAMING_FEE = (2 * BONE) / 10**2;
+    uint internal constant BPY                = 10512000;
+
     uint internal constant MIN_WEIGHT         = BONE;
     uint internal constant MAX_WEIGHT         = BONE * 50;
     uint internal constant MAX_TOTAL_WEIGHT   = BONE * 50;

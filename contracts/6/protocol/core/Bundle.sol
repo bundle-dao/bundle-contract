@@ -136,19 +136,31 @@ contract Bundle is Initializable, BToken, BMath {
     // Sum of token denorms
     uint256 private _totalWeight;
 
+    // Streaming fee
+    uint256 private _streamingFee;
+
+    // Start block for streaming fee
+    uint256 private _lastStreamingBlock;
+
     /* ========== Initialization ========== */
 
     /**
      * @dev Initializer function for upgradeability
      * TODO: Set unbound handler on initialization
      */
-    function initialize(address controller, address rebalancer, string calldata name, string calldata symbol) 
+    function initialize(
+        address controller, 
+        address rebalancer, 
+        string calldata name, 
+        string calldata symbol
+    )
         external 
         initializer
     {
         _controller = controller;
         _rebalancer = rebalancer;
         _swapFee = MIN_FEE;
+        _streamingFee = INIT_STREAMING_FEE;
         _publicSwap = false;
         _initializeToken(name, symbol);
     }
@@ -200,6 +212,7 @@ contract Bundle is Initializable, BToken, BMath {
         require(totalWeight <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
         _totalWeight = totalWeight;
         _publicSwap = true;
+        _lastStreamingBlock = block.number;
         _setup = true;
         emit LogPublicSwapEnabled();
         _mintPoolShare(INIT_POOL_SUPPLY);
@@ -257,6 +270,44 @@ contract Bundle is Initializable, BToken, BMath {
         _minBalances[token] = minBalance;
     }
 
+    function setStreamingFee(uint256 streamingFee) 
+        external
+        _logs_
+        _lock_
+        _control_
+    {
+        require(streamingFee < MAX_STREAMING_FEE, "ERR_MAX_STREAMING_FEE");
+        _streamingFee = streamingFee;
+    }
+
+    function collectStreamingFee()
+        external
+        _logs_
+        _lock_
+        _control_
+    {
+        require(_setup, "ERR_SETUP");
+        require(_lastStreamingBlock < block.number, "ERR_COLLECTION_TO_SOON");
+
+        uint256 blockDelta = bsub(block.number, _lastStreamingBlock);
+
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            address token = _tokens[i];
+
+            // Shouldnt withdraw tokens if not ready
+            if (_records[token].ready) {
+                uint256 fee = bdiv(
+                    bmul(bmul(_records[token].balance, _streamingFee), blockDelta),
+                    bmul(BONE, BPY)
+                );
+
+                _pushUnderlying(token, _controller, fee);
+            }
+        }
+
+        _lastStreamingBlock = block.number;
+    }
+
     /* ==========  Getters  ========== */
 
     function isPublicSwap()
@@ -275,7 +326,7 @@ contract Bundle is Initializable, BToken, BMath {
 
     function getNumTokens()
         external view
-        returns (uint) 
+        returns (uint256) 
     {
         return _tokens.length;
     }
@@ -290,7 +341,7 @@ contract Bundle is Initializable, BToken, BMath {
     function getDenormalizedWeight(address token)
         external view
         _viewlock_
-        returns (uint)
+        returns (uint256)
     {
 
         require(_records[token].bound, "ERR_NOT_BOUND");
@@ -300,7 +351,7 @@ contract Bundle is Initializable, BToken, BMath {
     function getTotalDenormalizedWeight()
         external view
         _viewlock_
-        returns (uint)
+        returns (uint256)
     {
         return _totalWeight;
     }
@@ -308,7 +359,7 @@ contract Bundle is Initializable, BToken, BMath {
     function getNormalizedWeight(address token)
         external view
         _viewlock_
-        returns (uint)
+        returns (uint256)
     {
 
         require(_records[token].bound, "ERR_NOT_BOUND");
@@ -319,7 +370,7 @@ contract Bundle is Initializable, BToken, BMath {
     function getBalance(address token)
         external view
         _viewlock_
-        returns (uint)
+        returns (uint256)
     {
 
         require(_records[token].bound, "ERR_NOT_BOUND");
@@ -329,9 +380,25 @@ contract Bundle is Initializable, BToken, BMath {
     function getSwapFee()
         external view
         _viewlock_
-        returns (uint)
+        returns (uint256)
     {
         return _swapFee;
+    }
+
+    function getStreamingFee()
+        external view
+        _viewlock_
+        returns (uint256)
+    {
+        return _streamingFee;
+    }
+
+    function getLastStreamingBlock()
+        external view
+        _viewlock_
+        returns (uint256)
+    {
+        return _lastStreamingBlock;
     }
 
     function getController()
