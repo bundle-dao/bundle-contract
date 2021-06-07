@@ -401,7 +401,7 @@ contract Bundle is Initializable, BToken, BMath {
             targetDenorms.length == tokens.length && minBalances.length == tokens.length,
             "ERR_ARR_LEN"
         );
-        uint8 unbindCounter = 0;
+        uint256 unbindCounter = 0;
         uint256 tLen = _tokens.length;
         bool[] memory receivedIndices = new bool[](tLen);
 
@@ -610,20 +610,23 @@ contract Bundle is Initializable, BToken, BMath {
 
     function joinPool(uint256 poolAmountOut, uint[] calldata maxAmountsIn)
         external
+        _public_
         _logs_
         _lock_
     {
+        require(maxAmountsIn.length == _tokens.length, "ERR_ARR_LEN");
+
         uint256 poolTotal = totalSupply();
         uint256 ratio = bdiv(poolAmountOut, poolTotal);
         require(ratio != 0, "ERR_MATH_APPROX");
 
         for (uint256 i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
-            uint256 bal = _records[t].balance;
+            uint256 bal = _getBalance(t);
             uint256 tokenAmountIn = bmul(ratio, bal);
             require(tokenAmountIn != 0, "ERR_MATH_APPROX");
             require(tokenAmountIn <= maxAmountsIn[i], "ERR_LIMIT_IN");
-            _records[t].balance = badd(_records[t].balance, tokenAmountIn);
+            _updateToken(t, badd(_records[t].balance, tokenAmountIn));
             emit LogJoin(msg.sender, t, tokenAmountIn);
             _pullUnderlying(t, msg.sender, tokenAmountIn);
         }
@@ -633,6 +636,7 @@ contract Bundle is Initializable, BToken, BMath {
 
     function exitPool(uint256 poolAmountIn, uint[] calldata minAmountsOut)
         external
+        _public_
         _logs_
         _lock_
     {
@@ -648,157 +652,20 @@ contract Bundle is Initializable, BToken, BMath {
 
         for (uint256 i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
-            uint256 bal = _records[t].balance;
-            uint256 tokenAmountOut = bmul(ratio, bal);
-            require(tokenAmountOut != 0, "ERR_MATH_APPROX");
-            require(tokenAmountOut >= minAmountsOut[i], "ERR_LIMIT_OUT");
-            _records[t].balance = bsub(_records[t].balance, tokenAmountOut);
-            emit LogExit(msg.sender, t, tokenAmountOut);
-            _pushUnderlying(t, msg.sender, tokenAmountOut);
+            Record memory record = _records[t];
+
+            if (record.ready) {
+                uint256 tokenAmountOut = bmul(ratio, record.balance);
+                require(tokenAmountOut != 0, "ERR_MATH_APPROX");
+                require(tokenAmountOut >= minAmountsOut[i], "ERR_LIMIT_OUT");
+                _records[t].balance = bsub(_records[t].balance, tokenAmountOut);
+                emit LogExit(msg.sender, t, tokenAmountOut);
+                _pushUnderlying(t, msg.sender, tokenAmountOut);
+            } else {
+                // Uninitialized tokens cannot exit the pool
+                require(minAmountsOut[i] == 0, "ERR_NOT_READY");
+            }
         }
-    }
-
-        function joinswapExternAmountIn(address tokenIn, uint256 tokenAmountIn, uint256 minPoolAmountOut)
-        external
-        _logs_
-        _lock_
-        returns (uint256 poolAmountOut)
-
-    {
-        require(_records[tokenIn].bound, "ERR_NOT_BOUND");
-        require(tokenAmountIn <= bmul(_records[tokenIn].balance, MAX_IN_RATIO), "ERR_MAX_IN_RATIO");
-
-        Record storage inRecord = _records[tokenIn];
-
-        poolAmountOut = calcPoolOutGivenSingleIn(
-                            inRecord.balance,
-                            inRecord.denorm,
-                            _totalSupply,
-                            _totalWeight,
-                            tokenAmountIn,
-                            _swapFee
-                        );
-
-        require(poolAmountOut >= minPoolAmountOut, "ERR_LIMIT_OUT");
-
-        inRecord.balance = badd(inRecord.balance, tokenAmountIn);
-
-        emit LogJoin(msg.sender, tokenIn, tokenAmountIn);
-
-        _mintPoolShare(poolAmountOut);
-        _pushPoolShare(msg.sender, poolAmountOut);
-        _pullUnderlying(tokenIn, msg.sender, tokenAmountIn);
-
-        return poolAmountOut;
-    }
-
-    function joinswapPoolAmountOut(address tokenIn, uint256 poolAmountOut, uint256 maxAmountIn)
-        external
-        _logs_
-        _lock_
-        returns (uint256 tokenAmountIn)
-    {
-        require(_records[tokenIn].bound, "ERR_NOT_BOUND");
-
-        Record storage inRecord = _records[tokenIn];
-
-        tokenAmountIn = calcSingleInGivenPoolOut(
-                            inRecord.balance,
-                            inRecord.denorm,
-                            _totalSupply,
-                            _totalWeight,
-                            poolAmountOut,
-                            _swapFee
-                        );
-
-        require(tokenAmountIn != 0, "ERR_MATH_APPROX");
-        require(tokenAmountIn <= maxAmountIn, "ERR_LIMIT_IN");
-        
-        require(tokenAmountIn <= bmul(_records[tokenIn].balance, MAX_IN_RATIO), "ERR_MAX_IN_RATIO");
-
-        inRecord.balance = badd(inRecord.balance, tokenAmountIn);
-
-        emit LogJoin(msg.sender, tokenIn, tokenAmountIn);
-
-        _mintPoolShare(poolAmountOut);
-        _pushPoolShare(msg.sender, poolAmountOut);
-        _pullUnderlying(tokenIn, msg.sender, tokenAmountIn);
-
-        return tokenAmountIn;
-    }
-
-    function exitswapPoolAmountIn(address tokenOut, uint256 poolAmountIn, uint256 minAmountOut)
-        external
-        _logs_
-        _lock_
-        returns (uint256 tokenAmountOut)
-    {
-        require(_records[tokenOut].bound, "ERR_NOT_BOUND");
-
-        Record storage outRecord = _records[tokenOut];
-
-        tokenAmountOut = calcSingleOutGivenPoolIn(
-                            outRecord.balance,
-                            outRecord.denorm,
-                            _totalSupply,
-                            _totalWeight,
-                            poolAmountIn,
-                            _swapFee
-                        );
-
-        require(tokenAmountOut >= minAmountOut, "ERR_LIMIT_OUT");
-        
-        require(tokenAmountOut <= bmul(_records[tokenOut].balance, MAX_OUT_RATIO), "ERR_MAX_OUT_RATIO");
-
-        outRecord.balance = bsub(outRecord.balance, tokenAmountOut);
-
-        uint256 exitFee = bmul(poolAmountIn, EXIT_FEE);
-
-        emit LogExit(msg.sender, tokenOut, tokenAmountOut);
-
-        _pullPoolShare(msg.sender, poolAmountIn);
-        _burnPoolShare(bsub(poolAmountIn, exitFee));
-        _pushPoolShare(_controller, exitFee);
-        _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
-
-        return tokenAmountOut;
-    }
-
-    function exitswapExternAmountOut(address tokenOut, uint256 tokenAmountOut, uint256 maxPoolAmountIn)
-        external
-        _logs_
-        _lock_
-        returns (uint256 poolAmountIn)
-    {
-        require(_records[tokenOut].bound, "ERR_NOT_BOUND");
-        require(tokenAmountOut <= bmul(_records[tokenOut].balance, MAX_OUT_RATIO), "ERR_MAX_OUT_RATIO");
-
-        Record storage outRecord = _records[tokenOut];
-
-        poolAmountIn = calcPoolInGivenSingleOut(
-                            outRecord.balance,
-                            outRecord.denorm,
-                            _totalSupply,
-                            _totalWeight,
-                            tokenAmountOut,
-                            _swapFee
-                        );
-
-        require(poolAmountIn != 0, "ERR_MATH_APPROX");
-        require(poolAmountIn <= maxPoolAmountIn, "ERR_LIMIT_IN");
-
-        outRecord.balance = bsub(outRecord.balance, tokenAmountOut);
-
-        uint256 exitFee = bmul(poolAmountIn, EXIT_FEE);
-
-        emit LogExit(msg.sender, tokenOut, tokenAmountOut);
-
-        _pullPoolShare(msg.sender, poolAmountIn);
-        _burnPoolShare(bsub(poolAmountIn, exitFee));
-        _pushPoolShare(_controller, exitFee);
-        _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);        
-
-        return poolAmountIn;
     }
 
     /* ==========  Swaps  ========== */
