@@ -47,6 +47,7 @@
         "typescript": "^4.2.3"
     },
     "dependencies": {
+        "@bundle-dao/pancakeswap-peripheral": "^1.1.0-beta.0",
         "@ethersproject/bignumber": "^5.0.14",
         "@openzeppelin/contracts": "3.4.0",
         "@openzeppelin/contracts-ethereum-package": "^3.0.0",

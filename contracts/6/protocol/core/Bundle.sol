@@ -7,6 +7,7 @@ import "./BMath.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
+import "../interfaces/IUnbinder.sol";
 
 /************************************************************************************************
 Originally forked from https://github.com/balancer-labs/balancer-core/
@@ -101,6 +102,7 @@ contract Bundle is Initializable, BToken, BMath {
 
     modifier _rebalance_() {
         require(msg.sender == _rebalancer, "ERR_NOT_REBALANCER");
+        require(_rebalancable, "ERR_NOT_REBALANCEABLE");
         _;
     }
 
@@ -142,6 +144,12 @@ contract Bundle is Initializable, BToken, BMath {
     // Start block for streaming fee
     uint256 private _lastStreamingBlock;
 
+    // Is rebalancable
+    bool private _rebalancable;
+
+    // Contract that handles unbound tokens
+    IUnbinder private _unbinder;
+
     /* ========== Initialization ========== */
 
     /**
@@ -150,19 +158,21 @@ contract Bundle is Initializable, BToken, BMath {
      */
     function initialize(
         address controller, 
-        address rebalancer, 
+        address rebalancer,
+        IUnbinder unbinder,
         string calldata name, 
         string calldata symbol
     )
-        external 
+        public
         initializer
     {
+        _initializeToken(name, symbol);
         _controller = controller;
         _rebalancer = rebalancer;
+        _unbinder = unbinder;
         _swapFee = MIN_FEE;
         _streamingFee = INIT_STREAMING_FEE;
         _publicSwap = false;
-        _initializeToken(name, symbol);
     }
 
     /** @dev Setup function to initialize the pool after contract creation */
@@ -213,6 +223,7 @@ contract Bundle is Initializable, BToken, BMath {
         _totalWeight = totalWeight;
         _publicSwap = true;
         _lastStreamingBlock = block.number;
+        _rebalancable = true;
         _setup = true;
         emit LogPublicSwapEnabled();
         _mintPoolShare(INIT_POOL_SUPPLY);
@@ -232,22 +243,13 @@ contract Bundle is Initializable, BToken, BMath {
         emit LogSwapFeeUpdated(msg.sender, swapFee);
     }
 
-    function setController(address manager)
+    function setRebalancable(bool rebalancable)
         external
         _logs_
         _lock_
         _control_
     {
-        _controller = manager;
-    }
-
-    function setRebalancer(address rebalancer)
-        external
-        _logs_
-        _lock_
-        _control_
-    {
-        _rebalancer = rebalancer;
+        _rebalancable = rebalancable;
     }
 
     function setPublicSwap(bool public_)
@@ -302,6 +304,7 @@ contract Bundle is Initializable, BToken, BMath {
                 );
 
                 _pushUnderlying(token, _controller, fee);
+                _updateToken(token, bsub(_records[token].balance, fee));
             }
         }
 
@@ -415,6 +418,22 @@ contract Bundle is Initializable, BToken, BMath {
         returns (address)
     {
         return _rebalancer;
+    }
+
+    function getRebalancable()
+        external view
+        _viewlock_
+        returns (bool)
+    {
+        return _rebalancable;
+    }
+
+    function getUnbinder()
+        external view
+        _viewlock_
+        returns (address)
+    {
+        return address(_unbinder);
     }
 
     function getSpotPrice(address tokenIn, address tokenOut)
@@ -587,7 +606,8 @@ contract Bundle is Initializable, BToken, BMath {
         });
 
         // TODO: Send this to unbound token handler
-        _pushUnderlying(token, msg.sender, tokenBalance);
+        _pushUnderlying(token, address(_unbinder), tokenBalance);
+        _unbinder.handleUnboundToken(token);
     }
 
     /**
@@ -720,8 +740,14 @@ contract Bundle is Initializable, BToken, BMath {
         _logs_
         _lock_
     {
-        require(_records[token].bound, "ERR_NOT_BOUND");
-        _records[token].balance = IERC20(token).balanceOf(address(this));
+        Record storage record = _records[token];
+        uint256 balance = IERC20Upgradeable(token).balanceOf(address(this));
+        if (record.bound) {
+            _updateToken(token, balance);
+        } else {
+            _pushUnderlying(token, address(_unbinder), balance);
+            _unbinder.handleUnboundToken(token);
+        }
     }
 
     /* ==========  Pool Entry/Exit  ========== */
