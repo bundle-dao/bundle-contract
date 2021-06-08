@@ -36,6 +36,11 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         _;
     }
 
+    modifier _eoa_() {
+        require(msg.sender == tx.origin, "ERR_NOT_EOA");
+        _;
+    }
+
     // Initialization
     function initialize(IBundle bundle, IPancakeRouter02 router, address controller, address routeToken)
         public
@@ -110,6 +115,7 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     function distributeUnboundToken(address token, uint256 amount)
         external override
         nonReentrant
+        _eoa_
     {
         require(IERC20Upgradeable(token).balanceOf(address(this)) >= amount, "ERR_BAD_AMOUNT");
 
