@@ -8,6 +8,7 @@ import "./BMath.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
 import "../interfaces/IUnbinder.sol";
+import "../interfaces/IBundle.sol";
 
 /************************************************************************************************
 Originally forked from https://github.com/balancer-labs/balancer-core/
@@ -18,58 +19,8 @@ at commit hash f4ed5d65362a8d6cec21662fb6eae233b0babc1f.
 Subject to the GPL-3.0 license
 *************************************************************************************************/
 
-contract Bundle is Initializable, BToken, BMath {
+contract Bundle is Initializable, BToken, BMath, IBundle {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-
-    struct Record {
-        bool bound;               // is token bound to pool
-        bool ready;
-        uint256 denorm;            // denormalized weight
-        uint256 targetDenorm;
-        uint256 targetBlock;
-        uint256 lastUpdateBlock;
-        uint8 index;              // private
-        uint256 balance;
-    }
-
-    /* ========== Events ========== */
-
-    event LogSwap(
-        address indexed caller,
-        address indexed tokenIn,
-        address indexed tokenOut,
-        uint256         tokenAmountIn,
-        uint256         tokenAmountOut
-    );
-
-    event LogJoin(
-        address indexed caller,
-        address indexed tokenIn,
-        uint256         tokenAmountIn
-    );
-
-    event LogExit(
-        address indexed caller,
-        address indexed tokenOut,
-        uint256         tokenAmountOut
-    );
-
-    event LogSwapFeeUpdated(
-        address indexed caller,
-        uint256         swapFee
-    );
-
-    event LogTokenReady(
-        address indexed token
-    );
-
-    event LogPublicSwapEnabled();
-
-    event LogCall(
-        bytes4  indexed sig,
-        address indexed caller,
-        bytes           data
-    ) anonymous;
 
     /* ========== Modifiers ========== */
 
@@ -182,7 +133,7 @@ contract Bundle is Initializable, BToken, BMath {
         uint256[] calldata denorms,
         address tokenProvider
     )
-        external
+        external override
         _logs_
         _lock_
         _control_
@@ -233,7 +184,7 @@ contract Bundle is Initializable, BToken, BMath {
     /* ==========  Control  ========== */
 
     function setSwapFee(uint256 swapFee)
-        external
+        external override
         _lock_
         _control_
     { 
@@ -244,7 +195,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function setRebalancable(bool rebalancable)
-        external
+        external override
         _logs_
         _lock_
         _control_
@@ -253,7 +204,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function setPublicSwap(bool public_)
-        external
+        external override
         _logs_
         _lock_
         _control_
@@ -262,7 +213,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function setMinBalance(address token, uint256 minBalance) 
-        external
+        external override
         _logs_
         _lock_
         _control_
@@ -273,7 +224,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function setStreamingFee(uint256 streamingFee) 
-        external
+        external override
         _logs_
         _lock_
         _control_
@@ -283,7 +234,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function collectStreamingFee()
-        external
+        external override
         _logs_
         _lock_
         _control_
@@ -314,35 +265,36 @@ contract Bundle is Initializable, BToken, BMath {
     /* ==========  Getters  ========== */
 
     function isPublicSwap()
-        external view
+        external view override
         returns (bool)
     {
         return _publicSwap;
     }
 
     function isBound(address t)
-        external view
+        external view override
         returns (bool)
     {
         return _records[t].bound;
     }
 
     function getNumTokens()
-        external view
+        external view override
         returns (uint256) 
     {
         return _tokens.length;
     }
 
     function getCurrentTokens()
-        external view _viewlock_
+        external view override 
+        _viewlock_
         returns (address[] memory tokens)
     {
         return _tokens;
     }
 
     function getDenormalizedWeight(address token)
-        external view
+        external view override
         _viewlock_
         returns (uint256)
     {
@@ -352,7 +304,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getTotalDenormalizedWeight()
-        external view
+        external view override
         _viewlock_
         returns (uint256)
     {
@@ -360,7 +312,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getNormalizedWeight(address token)
-        external view
+        external view override
         _viewlock_
         returns (uint256)
     {
@@ -371,7 +323,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getBalance(address token)
-        external view
+        external view override
         _viewlock_
         returns (uint256)
     {
@@ -381,7 +333,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getSwapFee()
-        external view
+        external view override
         _viewlock_
         returns (uint256)
     {
@@ -389,7 +341,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getStreamingFee()
-        external view
+        external view override
         _viewlock_
         returns (uint256)
     {
@@ -397,7 +349,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getLastStreamingBlock()
-        external view
+        external view override
         _viewlock_
         returns (uint256)
     {
@@ -405,7 +357,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getController()
-        external view
+        external view override
         _viewlock_
         returns (address)
     {
@@ -413,7 +365,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getRebalancer()
-        external view
+        external view override
         _viewlock_
         returns (address)
     {
@@ -421,7 +373,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getRebalancable()
-        external view
+        external view override
         _viewlock_
         returns (bool)
     {
@@ -429,7 +381,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getUnbinder()
-        external view
+        external view override
         _viewlock_
         returns (address)
     {
@@ -437,7 +389,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getSpotPrice(address tokenIn, address tokenOut)
-        external view
+        external view override
         _viewlock_
         returns (uint256 spotPrice)
     {
@@ -449,7 +401,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function getSpotPriceSansFee(address tokenIn, address tokenOut)
-        external view
+        external view override
         _viewlock_
         returns (uint256 spotPrice)
     {
@@ -472,7 +424,7 @@ contract Bundle is Initializable, BToken, BMath {
         address[] calldata tokens,
         uint256[] calldata targetDenorms
     )
-        external
+        external override
         _lock_
         _control_
     {
@@ -494,7 +446,7 @@ contract Bundle is Initializable, BToken, BMath {
         uint256[] calldata targetDenorms,
         uint256[] calldata minBalances
     )
-        external
+        external override
         _lock_
         _control_
     {
@@ -723,8 +675,7 @@ contract Bundle is Initializable, BToken, BMath {
     function _getBalance(
         address token
     )
-        internal
-        view
+        internal view
         returns (uint256 balance)
     {
         if (_records[token].ready) {
@@ -736,7 +687,7 @@ contract Bundle is Initializable, BToken, BMath {
 
     // Absorb any tokens that have been sent to this contract into the pool
     function gulp(address token)
-        external
+        external override
         _logs_
         _lock_
     {
@@ -753,7 +704,7 @@ contract Bundle is Initializable, BToken, BMath {
     /* ==========  Pool Entry/Exit  ========== */
 
     function joinPool(uint256 poolAmountOut, uint[] calldata maxAmountsIn)
-        external
+        external override
         _public_
         _logs_
         _lock_
@@ -779,7 +730,7 @@ contract Bundle is Initializable, BToken, BMath {
     }
 
     function exitPool(uint256 poolAmountIn, uint[] calldata minAmountsOut)
-        external
+        external override
         _public_
         _logs_
         _lock_
@@ -821,7 +772,7 @@ contract Bundle is Initializable, BToken, BMath {
         uint256 minAmountOut,
         uint256 maxPrice
     )
-        external
+        external override
         _logs_
         _lock_
         _public_
@@ -887,7 +838,7 @@ contract Bundle is Initializable, BToken, BMath {
         uint256 tokenAmountOut,
         uint256 maxPrice
     )
-        external
+        external override
         _logs_
         _lock_
         _public_
