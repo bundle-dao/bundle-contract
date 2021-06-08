@@ -88,8 +88,6 @@ interface IBundle {
 
     function getTotalDenormalizedWeight() external view returns (uint256);
 
-    function getNormalizedWeight(address token) external view returns (uint256);
-
     function getBalance(address token) external view returns (uint256);
 
     function getSwapFee() external view returns (uint256);

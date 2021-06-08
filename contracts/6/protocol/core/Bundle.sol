@@ -324,17 +324,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         return _totalWeight;
     }
 
-    function getNormalizedWeight(address token)
-        external view override
-        _viewlock_
-        returns (uint256)
-    {
-
-        require(_records[token].bound, "ERR_NOT_BOUND");
-        uint256 denorm = _records[token].denorm;
-        return bdiv(denorm, _totalWeight);
-    }
-
     function getBalance(address token)
         external view override
         _viewlock_
