@@ -70,9 +70,11 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     // true if PUBLIC can call SWAP functions
     bool private _publicSwap;
 
-    // `setSwapFee` and `finalize` require CONTROL
-    // `finalize` sets `PUBLIC can SWAP`, `PUBLIC can JOIN`
+    // swap fee
     uint256 private _swapFee;
+
+    // exit fee
+    uint256 private _exitFee;
 
     // Flag preventing multiple setup calls
     bool private _setup;
@@ -123,6 +125,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _unbinder = unbinder;
         _swapFee = MIN_FEE;
         _streamingFee = INIT_STREAMING_FEE;
+        _exitFee = INIT_EXIT_FEE;
         _publicSwap = false;
     }
 
@@ -233,6 +236,16 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _streamingFee = streamingFee;
     }
 
+    function setExitFee(uint256 exitFee) 
+        external override
+        _logs_
+        _lock_
+        _control_
+    {
+        require(exitFee < MAX_EXIT_FEE, "ERR_MAX_STREAMING_FEE");
+        _exitFee = exitFee;
+    }
+
     function collectStreamingFee()
         external override
         _logs_
@@ -251,7 +264,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             if (_records[token].ready) {
                 uint256 fee = bdiv(
                     bmul(bmul(_records[token].balance, _streamingFee), blockDelta),
-                    bmul(BONE, BPY)
+                    BPY
                 );
 
                 _pushUnderlying(token, _controller, fee);
@@ -346,6 +359,14 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         returns (uint256)
     {
         return _streamingFee;
+    }
+
+    function getExitFee()
+        external view override
+        _viewlock_
+        returns (uint256)
+    {
+        return _exitFee;
     }
 
     function getLastStreamingBlock()
@@ -736,7 +757,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _lock_
     {
         uint256 poolTotal = totalSupply();
-        uint256 exitFee = bmul(poolAmountIn, EXIT_FEE);
+        uint256 exitFee = bmul(poolAmountIn, _exitFee);
         uint256 pAiAfterExitFee = bsub(poolAmountIn, exitFee);
         uint256 ratio = bdiv(pAiAfterExitFee, poolTotal);
         require(ratio != 0, "ERR_MATH_APPROX");

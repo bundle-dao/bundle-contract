@@ -72,6 +72,8 @@ interface IBundle {
 
     function setStreamingFee(uint256 streamingFee) external;
 
+    function setExitFee(uint256 exitFee) external;
+
     function collectStreamingFee() external;
 
     function isPublicSwap() external view returns (bool);
@@ -93,6 +95,8 @@ interface IBundle {
     function getSwapFee() external view returns (uint256);
 
     function getStreamingFee() external view returns (uint256);
+
+    function getExitFee() external view returns (uint256);
 
     function getLastStreamingBlock() external view returns (uint256);
 

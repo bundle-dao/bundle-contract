@@ -18,7 +18,9 @@ contract BConst {
 
     uint256 internal constant MIN_FEE            = BONE / 10**6;
     uint256 internal constant MAX_FEE            = BONE / 10;
-    uint256 internal constant EXIT_FEE           = BONE / 10**2;
+    
+    uint256 internal constant INIT_EXIT_FEE      = BONE / 10**2;
+    uint256 internal constant MAX_EXIT_FEE       = (5 * BONE) / 10**2;
 
     uint256 internal constant MAX_STREAMING_FEE  = (4 * BONE) / 10**2;
     uint256 internal constant INIT_STREAMING_FEE = (2 * BONE) / 10**2;

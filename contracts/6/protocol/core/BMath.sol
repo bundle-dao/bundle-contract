@@ -195,15 +195,17 @@ contract BMath is BConst, BNum {
         uint poolSupply,
         uint totalWeight,
         uint poolAmountIn,
-        uint swapFee
+        uint swapFee,
+        uint exitFee
     )
         internal pure
         returns (uint tokenAmountOut)
     {
+        // unused function but add variable exit fee for consistency
         uint normalizedWeight = bdiv(tokenWeightOut, totalWeight);
         // charge exit fee on the pool token side
         // pAiAfterExitFee = pAi*(1-exitFee)
-        uint poolAmountInAfterExitFee = bmul(poolAmountIn, bsub(BONE, EXIT_FEE));
+        uint poolAmountInAfterExitFee = bmul(poolAmountIn, bsub(BONE, exitFee));
         uint newPoolSupply = bsub(poolSupply, poolAmountInAfterExitFee);
         uint poolRatio = bdiv(newPoolSupply, poolSupply);
      
@@ -237,12 +239,13 @@ contract BMath is BConst, BNum {
         uint poolSupply,
         uint totalWeight,
         uint tokenAmountOut,
-        uint swapFee
+        uint swapFee,
+        uint exitFee
     )
         internal pure
         returns (uint poolAmountIn)
     {
-
+        // unused function but add variable exit fee for consistency
         // charge swap fee on the output token side 
         uint normalizedWeight = bdiv(tokenWeightOut, totalWeight);
         //uint tAoBeforeSwapFee = tAo / (1 - (1-weightTo) * swapFee) ;
@@ -260,7 +263,7 @@ contract BMath is BConst, BNum {
 
         // charge exit fee on the pool token side
         // pAi = pAiAfterExitFee/(1-exitFee)
-        poolAmountIn = bdiv(poolAmountInAfterExitFee, bsub(BONE, EXIT_FEE));
+        poolAmountIn = bdiv(poolAmountInAfterExitFee, bsub(BONE, exitFee));
         return poolAmountIn;
     }
 }
