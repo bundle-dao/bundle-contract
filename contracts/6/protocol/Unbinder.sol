@@ -95,7 +95,18 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         return _premium;
     }
 
-    // Public handler function
+    /** @dev This function and contract are intended to allow constrained
+     *  swaps from an unbound token back to bound tokens. Ensures that erroneously
+     *  sent tokens / small amounts of unbound tokens are redistributed back to 
+     *  index holders. This could be improved by using TWAP and a price oracle, 
+     *  but ultimately not important enough to prioritize at the time being.
+     *
+     *  Experimental, and may require future upgrades to resolve certain blocking
+     *  edge cases.
+     *
+     *  @param token Address of token to distribute back to Bundle
+     *  @param amount Amount of token to redistribute
+     */
     function distributeUnboundToken(address token, uint256 amount)
         external override
         nonReentrant
@@ -126,6 +137,7 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
             address bToken = tokens[i];
             address[] memory path = new address[](3);
 
+            // Enforce reliably secure path set on initialization
             path[0] = token;
             path[1] = _routeToken;
             path[2] = bToken;
@@ -136,8 +148,13 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
 
             require(expectedBTokenOut > 0, "ERR_BAD_SWAP");
             
-            uint256 minOut = expectedBTokenOut.mul(950).div(1000);
+            // Min amount out to be 97% of expectation
+            // unbinder used infrequently enough s.t. these don't need to be too strict
+            uint256 minOut = expectedBTokenOut.mul(970).div(1000);
             _router.swapExactTokensForTokens(input, minOut, path, address(_bundle), block.timestamp + 5 minutes);
+
+            // Add bToken back to balances
+            _bundle.gulp(bToken);
         }
     }
 }
