@@ -105,7 +105,7 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
      *  @param token Address of token to distribute back to Bundle
      *  @param amount Amount of token to redistribute
      */
-    function distributeUnboundToken(address token, uint256 amount)
+    function distributeUnboundToken(address token, uint256 amount, uint256 deadline)
         external override
         nonReentrant
         _eoa_
@@ -150,7 +150,7 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
             // Min amount out to be 97% of expectation
             // unbinder used infrequently enough s.t. these don't need to be too strict
             uint256 minOut = expectedBTokenOut.mul(970).div(1000);
-            _router.swapExactTokensForTokens(input, minOut, path, address(_bundle), block.timestamp + 5 minutes);
+            _router.swapExactTokensForTokens(input, minOut, path, address(_bundle), deadline);
 
             // Add bToken back to balances
             _bundle.gulp(bToken);
