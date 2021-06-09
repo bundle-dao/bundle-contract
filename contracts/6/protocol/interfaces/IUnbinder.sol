@@ -9,7 +9,6 @@ interface IUnbinder {
     function handleUnboundToken(address token) external;
     function distributeUnboundToken(address token, uint256 amount) external;
     function setPremium(uint256 _premium) external;
-    function setRouter(IPancakeRouter02 router) external;
     function getPremium() external view returns (uint256);
     function getController() external view returns (address);
     function getBundle() external view returns (address);

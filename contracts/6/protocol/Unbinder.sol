@@ -14,16 +14,16 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
+    uint256 internal constant BONE         = 10**18;
+    uint256 internal constant INIT_PREMIUM = BONE / 10**2;
+    uint256 internal constant MAX_PREMIUM  = (5 * BONE) / 10**2;
+
     // Storage
     address private _controller;
     address private _routeToken;
     uint256 private _premium;
     IBundle private _bundle;
     IPancakeRouter02 private _router;
-
-    uint256 internal constant BONE         = 10**18;
-    uint256 internal constant INIT_PREMIUM = BONE / 10**2;
-    uint256 internal constant MAX_PREMIUM  = (5 * BONE) / 10**2;
 
     // Modifiers
     modifier _control_() {
@@ -61,13 +61,6 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     {
         require(_premium <= MAX_PREMIUM, "ERR_MAX_PREMIUM");
         _premium = premium;
-    }
-
-    function setRouter(IPancakeRouter02 router)
-        external override
-        _control_
-    {
-        _router = router;
     }
 
     // Bundle functions
