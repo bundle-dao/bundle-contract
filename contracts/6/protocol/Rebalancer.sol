@@ -14,11 +14,14 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
+    /* ========== Constants ========== */
+
     uint256 internal constant BONE         = 10**18;
     uint256 internal constant INIT_PREMIUM = (2 * BONE) / 10**2;
     uint256 internal constant MAX_PREMIUM  = (25 * BONE) / 10**2;
 
-    // Storage
+    /* ========== Storage ========== */
+    
     address private _controller;
     address private _bundleToken;
     uint256 private _premium;
@@ -26,7 +29,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
 
     mapping(address=>bool) private _poolAuth;
 
-    // Modifiers
+    /* ========== Modifiers ========== */
+    
     modifier _control_() {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         _;
@@ -37,7 +41,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
         _;
     }
 
-    // Initialization
+    /* ========== Initialization ========== */
+    
     function initialize(IPancakeRouter02 router, address controller, address bundleToken)
         public
         initializer
@@ -49,7 +54,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
         _premium = INIT_PREMIUM;
     }
 
-    // Controller methods
+    /* ========== Control ========== */
+
     function setPremium(uint256 premium)
         external
         _control_
@@ -65,7 +71,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
         _poolAuth[pool] = flag;
     }
 
-    // Getters
+    /* ========== Getters ========== */
+
     function getController()
         external view
         returns (address)

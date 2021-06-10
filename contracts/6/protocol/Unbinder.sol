@@ -14,18 +14,22 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
+    /* ========== Constants ========== */
+
     uint256 internal constant BONE         = 10**18;
     uint256 internal constant INIT_PREMIUM = BONE / 10**2;
     uint256 internal constant MAX_PREMIUM  = (5 * BONE) / 10**2;
 
-    // Storage
+    /* ========== Storage ========== */
+
     address private _controller;
     address private _routeToken;
     uint256 private _premium;
     IBundle private _bundle;
     IPancakeRouter02 private _router;
 
-    // Modifiers
+    /* ========== Modifiers ========== */
+
     modifier _control_() {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         _;
@@ -41,7 +45,8 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         _;
     }
 
-    // Initialization
+    /* ========== Initialization ========== */
+    
     function initialize(IBundle bundle, IPancakeRouter02 router, address controller, address routeToken)
         public
         initializer
@@ -54,7 +59,8 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         _premium = INIT_PREMIUM;
     }
 
-    // Controller methods
+    /* ========== Control ========== */
+
     function setPremium(uint256 premium)
         external override
         _control_
@@ -63,7 +69,8 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         _premium = premium;
     }
 
-    // Bundle functions
+    /* ========== Bundle Interaction ========== */
+    
     function handleUnboundToken(address token)
         external override
         _bundle_
@@ -71,7 +78,8 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         emit TokenUnbound(token);
     }
 
-    // Getters
+    /* ========== Getters ========== */
+
     function getBundle()
         external view override
         returns (address)
