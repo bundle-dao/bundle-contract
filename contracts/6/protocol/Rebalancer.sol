@@ -9,8 +9,9 @@ import "@bundle-dao/pancakeswap-peripheral/contracts/interfaces/IPancakeRouter02
 
 import "./interfaces/IUnbinder.sol";
 import "./interfaces/IBundle.sol";
+import "./interfaces/IRebalancer.sol";
 
-contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
+contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
@@ -43,21 +44,21 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
 
     /* ========== Initialization ========== */
     
-    function initialize(IPancakeRouter02 router, address controller, address bundleToken)
-        public
+    function initialize(address router, address controller, address bundleToken)
+        public override
         initializer
     {
         __ReentrancyGuard_init();
         _controller = controller;
         _bundleToken = bundleToken;
-        _router = router;
+        _router = IPancakeRouter02(router);
         _premium = INIT_PREMIUM;
     }
 
     /* ========== Control ========== */
 
     function setPremium(uint256 premium)
-        external
+        external override
         _control_
     {
         require(_premium <= MAX_PREMIUM, "ERR_MAX_PREMIUM");
@@ -65,7 +66,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
     }
 
     function setWhitelist(address pool, bool flag)
-        external
+        external override
         _control_
     {
         _poolAuth[pool] = flag;
@@ -74,14 +75,14 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
     /* ========== Getters ========== */
 
     function getController()
-        external view
+        external view override
         returns (address)
     {
         return _controller;
     }
 
     function getPremium()
-        external view
+        external view override
         returns (uint256)
     {
         return _premium;
@@ -106,7 +107,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable {
         uint256 deadline,
         address[] calldata path
     )
-        external
+        external override
         nonReentrant
         _eoa_
     {

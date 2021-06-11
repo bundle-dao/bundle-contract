@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
+import "./IUnbinder.sol";
+
 interface IBundle {
     struct Record {
         bool bound;               // is token bound to pool
@@ -54,7 +56,14 @@ interface IBundle {
 
     /* ========== Initialization ========== */
 
-    /** @dev Setup function to initialize the pool after contract creation */
+    function initialize(
+        address controller, 
+        address rebalancer,
+        address unbinder,
+        string calldata name, 
+        string calldata symbol
+    ) external;
+
     function setup(
         address[] calldata tokens,
         uint256[] calldata balances,

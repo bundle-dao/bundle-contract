@@ -112,18 +112,18 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     function initialize(
         address controller, 
         address rebalancer,
-        IUnbinder unbinder,
+        address unbinder,
         string calldata name, 
         string calldata symbol
     )
-        public
+        public override
         initializer
     {
         _initializeToken(name, symbol);
         _controller = controller;
         _rebalancer = rebalancer;
-        _unbinder = unbinder;
-        _swapFee = MIN_FEE;
+        _unbinder = IUnbinder(unbinder);
+        _swapFee = INIT_FEE;
         _streamingFee = INIT_STREAMING_FEE;
         _exitFee = INIT_EXIT_FEE;
         _publicSwap = false;

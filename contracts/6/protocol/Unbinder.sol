@@ -47,13 +47,13 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
 
     /* ========== Initialization ========== */
     
-    function initialize(IBundle bundle, IPancakeRouter02 router, address controller, address routeToken)
-        public
+    function initialize(address bundle, address router, address controller, address routeToken)
+        public override
         initializer
     {
         __ReentrancyGuard_init();
-        _bundle = bundle;
-        _router = router;
+        _bundle = IBundle(bundle);
+        _router = IPancakeRouter02(router);
         _routeToken = routeToken;
         _controller = controller;
         _premium = INIT_PREMIUM;
