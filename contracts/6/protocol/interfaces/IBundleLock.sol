@@ -12,6 +12,10 @@ interface IBundleLock {
 
     function getTier(address user) external view returns (uint256);
 
+    function getBundleBalance(address user) external view returns (uint256);
+
+    function getLock(address user) external view returns (uint256);
+
     function deposit(uint256 amount) external;
 
     function withdraw(uint256 amount) external;

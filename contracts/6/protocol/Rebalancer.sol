@@ -29,7 +29,6 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     uint256 private _premium;
     uint256 private _tierLock;
     IPancakeRouter02 private _router;
-    IBundleLock private _bundleLock;
 
     mapping(address=>bool) private _poolAuth;
 
@@ -47,8 +46,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
 
     /* ========== Initialization ========== */
     
-    function initialize(address router, address controller, address bundleToken, address bundleLock)
-        public override
+    function initialize(address router, address controller, address bundleToken)
+        public
         initializer
     {
         __ReentrancyGuard_init();
@@ -56,7 +55,6 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _bundleToken = bundleToken;
         _router = IPancakeRouter02(router);
         _premium = INIT_PREMIUM;
-        _bundleLock = IBundleLock(bundleLock);
         _tierLock = 0;
     }
 
@@ -128,7 +126,6 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         require(IBundle(pool).isBound(tokenIn), "ERR_IN_NOT_BOUND");
         require(IBundle(pool).isBound(tokenOut), "ERR_OUT_NOT_BOUND");
         require(IBundle(pool).getRebalancable(), "ERR_NOT_REBALANCABLE");
-        require(_bundleLock.getTier(msg.sender) >= _tierLock, "ERR_USER_TIER");
 
         // Path validation
         require(path[0] == tokenOut, "ERR_BAD_PATH");

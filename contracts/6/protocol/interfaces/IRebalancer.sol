@@ -2,8 +2,6 @@
 pragma solidity 0.6.12;
 
 interface IRebalancer {
-    function initialize(address router, address controller, address bundleToken, address bundleLock) external;
-
     function setPremium(uint256 premium) external;
 
     function setWhitelist(address pool, bool flag) external;

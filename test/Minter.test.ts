@@ -52,13 +52,15 @@ describe("Minter", () => {
   beforeEach(async () => {
     [deployer, alice, bob, dev] = await ethers.getSigners();
 
+    let block = await ethers.provider.getBlockNumber();
+
     // Setup Minter contract
     // Deploy BDL
     const BundleToken = (await ethers.getContractFactory(
       "BundleToken",
       deployer
     )) as BundleToken__factory;
-    bundleToken = await BundleToken.deploy(132, 137);
+    bundleToken = await BundleToken.deploy(block + 23, block + 28);
     await bundleToken.deployed();
 
     const Minter = (await ethers.getContractFactory(
