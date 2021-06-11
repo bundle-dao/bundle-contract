@@ -135,33 +135,35 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
 
         // Assumes we can swap to tokens within the bundle
         for (uint256 i = 0; i < tokens.length; i++) {
-            address bToken = tokens[i];
-            weights[i] = _bundle.getDenormalizedWeight(bToken);
+            weights[i] = _bundle.getDenormalizedWeight(tokens[i]);
             totalWeight = totalWeight.add(weights[i]);
         }
 
         for (uint256 i = 0; i < tokens.length - 1; i++) {
-            address bToken = tokens[i];
             address[] memory path = new address[](3);
 
             // Enforce reliably secure path set on initialization
             path[0] = token;
             path[1] = _routeToken;
-            path[2] = bToken;
+            path[2] = tokens[i];
 
             uint256 input = balance.mul(weights[i]).div(totalWeight);
             uint256[] memory expectedOut = _router.getAmountsOut(input, path);
-            uint256 expectedBTokenOut = expectedOut[path.length - 1];
 
-            require(expectedBTokenOut > 0, "ERR_BAD_SWAP");
+            require(expectedOut[path.length - 1] > 0, "ERR_BAD_SWAP");
             
             // Min amount out to be 97% of expectation
             // unbinder used infrequently enough s.t. these don't need to be too strict
-            uint256 minOut = expectedBTokenOut.mul(970).div(1000);
-            _router.swapExactTokensForTokens(input, minOut, path, address(_bundle), deadline);
+            _router.swapExactTokensForTokens(
+                input, 
+                expectedOut[path.length - 1].mul(970).div(1000), 
+                path, 
+                address(_bundle), 
+                deadline
+            );
 
             // Add bToken back to balances
-            _bundle.gulp(bToken);
+            _bundle.gulp(tokens[i]);
         }
     }
 }
