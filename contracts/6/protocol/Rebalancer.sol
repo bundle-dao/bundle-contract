@@ -10,6 +10,7 @@ import "@bundle-dao/pancakeswap-peripheral/contracts/interfaces/IPancakeRouter02
 import "./interfaces/IUnbinder.sol";
 import "./interfaces/IBundle.sol";
 import "./interfaces/IRebalancer.sol";
+import "./interfaces/IBundleLock.sol";
 
 contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -26,7 +27,9 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     address private _controller;
     address private _bundleToken;
     uint256 private _premium;
+    uint256 private _tierLock;
     IPancakeRouter02 private _router;
+    IBundleLock private _bundleLock;
 
     mapping(address=>bool) private _poolAuth;
 
@@ -44,7 +47,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
 
     /* ========== Initialization ========== */
     
-    function initialize(address router, address controller, address bundleToken)
+    function initialize(address router, address controller, address bundleToken, address bundleLock)
         public override
         initializer
     {
@@ -53,6 +56,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _bundleToken = bundleToken;
         _router = IPancakeRouter02(router);
         _premium = INIT_PREMIUM;
+        _bundleLock = IBundleLock(bundleLock);
+        _tierLock = 0;
     }
 
     /* ========== Control ========== */
@@ -70,6 +75,13 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _control_
     {
         _poolAuth[pool] = flag;
+    }
+
+    function setTierLock(uint256 tierLock)
+        external override
+        _control_
+    {
+        _tierLock = tierLock;
     }
 
     /* ========== Getters ========== */
@@ -116,6 +128,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         require(IBundle(pool).isBound(tokenIn), "ERR_IN_NOT_BOUND");
         require(IBundle(pool).isBound(tokenOut), "ERR_OUT_NOT_BOUND");
         require(IBundle(pool).getRebalancable(), "ERR_NOT_REBALANCABLE");
+        require(_bundleLock.getTier(msg.sender) >= _tierLock, "ERR_USER_TIER");
 
         // Path validation
         require(path[0] == tokenOut, "ERR_BAD_PATH");

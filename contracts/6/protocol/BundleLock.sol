@@ -72,14 +72,9 @@ contract BundleLock is ERC20("L Bundle", "LBDL"), Ownable, IBundleLock {
     function deposit(uint256 amount)
         external override
     {
-        uint256 startTier = getTier(msg.sender);
         IERC20(_bundleToken).safeTransferFrom(msg.sender, address(this), amount);
         _bundleBalances[msg.sender] = _bundleBalances[msg.sender].add(amount);
-        uint256 endTier = getTier(msg.sender);
-
-        if (endTier > startTier) {
-            _locks[msg.sender] = block.number.add(LOCK);
-        }
+        _locks[msg.sender] = block.number.add(LOCK);
 
         _mint(msg.sender, amount);
     }

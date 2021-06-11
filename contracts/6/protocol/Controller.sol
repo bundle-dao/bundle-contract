@@ -122,6 +122,10 @@ contract Controller is Initializable, OwnableUpgradeable {
         _rebalancer.setWhitelist(bundle, flag);
     }
 
+    function setTierLock(uint256 tierLock) external onlyOwner {
+        _rebalancer.setTierLock(tierLock);
+    }
+
     /* ========== Unbinder ========== */
 
     function setUnbinderPremium(
