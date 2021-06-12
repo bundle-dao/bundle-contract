@@ -5,13 +5,22 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/BeaconProxy.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
-contract BundleFactory is Ownable {
+import "./interfaces/IBundleFactory.sol";
+
+contract BundleFactory is Ownable, IBundleFactory {
     /* ========== Storage ========== */
 
     address private _unbinderBeacon;
     address private _bundleBeacon;
     address private _controller;
     address private _rebalancer;
+
+    /* ========== Events ========== */
+
+    event LogDeploy(
+        address indexed bundle,
+        address indexed unbinder
+    );
 
     /* ========== Modifiers ========== */
 
@@ -25,21 +34,44 @@ contract BundleFactory is Ownable {
     // Initialize factory with static beacon and proxy addresses
     constructor(
         address unbinderBeacon,
-        address bundleBeacon,
-        address rebalancer
+        address bundleBeacon
     ) public {
         _unbinderBeacon = unbinderBeacon;
         _bundleBeacon = bundleBeacon;
-        _rebalancer = rebalancer;
     }
 
     /* ========== Control ========== */
 
     function setController(address controller)
-        external
+        external override
         onlyOwner
     {
+        require(_controller == address(0), "ERR_CONTROLLER_SET");
         _controller = controller;
+    }
+
+    function setRebalancer(address rebalancer)
+        external override
+        onlyOwner
+    {
+        require(_rebalancer == address(0), "ERR_REBALANCER_SET");
+        _rebalancer = rebalancer;
+    }
+
+    /* ========== Getters ========== */
+
+    function getController()
+        external view override
+        returns (address)
+    {
+        return _controller;
+    }
+
+    function getRebalancer()
+        external view override
+        returns (address)
+    {
+        return _rebalancer;
     }
 
     /* ========== Deploy ========== */
@@ -56,24 +88,31 @@ contract BundleFactory is Ownable {
         string calldata name,
         string calldata symbol
     )
-        external
+        external override
         _control_
         returns (address bundle, address unbinder)
     {
+        require(_rebalancer != address(0), "ERR_REBALANCER_NOT_SET");
+
+        // Initializer called by controller, so just pass null data
+        bytes memory data = "";
+
         // Compute salt as function of name and symbol
         bytes32 bundleSalt = keccak256(abi.encode(name, symbol));
 
         // Deploy uninitialized proxy
         // Factory should have limited knowledge about implementation
-        bytes memory bundleBytecode = abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(_bundleBeacon));
+        bytes memory bundleBytecode = abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(_bundleBeacon, data));
         bundle = Create2.deploy(0, bundleSalt, bundleBytecode);
 
         // Compute salt as hash of bundle salt
         bytes32 unbinderSalt = keccak256(abi.encode(bundleSalt));
 
         // Deploy uninitialized unbinder
-        bytes memory unbinderBytecode = abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(_unbinderBeacon));
+        bytes memory unbinderBytecode = abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(_unbinderBeacon, data));
         unbinder = Create2.deploy(0, unbinderSalt, unbinderBytecode);
+
+        emit LogDeploy(bundle, unbinder);
 
         return (bundle, unbinder);
     }

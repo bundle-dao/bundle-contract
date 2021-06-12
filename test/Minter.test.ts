@@ -11,7 +11,6 @@ import {
   MockERC20,
   MockERC20__factory
 } from "../typechain";
-import { equal } from "assert";
 
 chai.use(solidity);
 const { expect } = chai;
