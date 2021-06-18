@@ -68,14 +68,11 @@ contract Controller is Initializable, OwnableUpgradeable {
     /* ========== Bundle Deployment ========== */
 
     function deploy(
-        address rebalancer,
-        address routeToken,
         string calldata name,
         string calldata symbol
     ) 
         external
         onlyOwner
-        returns (address)
     {
         require(address(_rebalancer) != address(0), "ERR_REBALANCER_NOT_SET");
 
@@ -83,8 +80,8 @@ contract Controller is Initializable, OwnableUpgradeable {
         (address bundle, address unbinder) = _factory.deploy(name, symbol);
 
         // Initialize contracts
-        IBundle(bundle).initialize(address(this), rebalancer, unbinder, name, symbol);
-        IUnbinder(unbinder).initialize(bundle, _router, address(this), routeToken);
+        IBundle(bundle).initialize(address(this), address(_rebalancer), unbinder, name, symbol);
+        IUnbinder(unbinder).initialize(bundle, _router, address(this));
 
         _bundles[bundle] = Bundle({
             unbinder: unbinder,
@@ -92,8 +89,6 @@ contract Controller is Initializable, OwnableUpgradeable {
             isSetup: false,
             lastUpdateBlock: 0
         });
-
-        return bundle;
     }
 
     function setup(
@@ -122,8 +117,8 @@ contract Controller is Initializable, OwnableUpgradeable {
         _rebalancer.setWhitelist(bundle, flag);
     }
 
-    function setTierLock(uint256 tierLock) external onlyOwner {
-        _rebalancer.setTierLock(tierLock);
+    function setLock(bool lock) external onlyOwner {
+        _rebalancer.setLock(lock);
     }
 
     /* ========== Unbinder ========== */
@@ -137,6 +132,19 @@ contract Controller is Initializable, OwnableUpgradeable {
     {
         for (uint256 i = 0; i < unbinders.length; i++) {
             IUnbinder(unbinders[i]).setPremium(premium);
+        }
+    }
+
+    function setRouteToken(
+        address[] calldata unbinders, 
+        address token,
+        bool flag
+    )
+        external
+        onlyOwner
+    {
+        for (uint256 i = 0; i < unbinders.length; i++) {
+            IUnbinder(unbinders[i]).setRouteToken(token, flag);
         }
     }
 
@@ -239,6 +247,10 @@ contract Controller is Initializable, OwnableUpgradeable {
 
     function getDelay() external view returns (uint256) {
         return _delay;
+    }
+
+    function getRebalancer() external view returns (address) {
+        return address(_rebalancer);
     }
 
     /* ========== Misc ========== */

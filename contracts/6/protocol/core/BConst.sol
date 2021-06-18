@@ -14,22 +14,22 @@ contract BConst {
     uint256 internal constant BONE               = 10**18;
 
     uint256 internal constant MIN_BOUND_TOKENS   = 2;
-    uint256 internal constant MAX_BOUND_TOKENS   = 8;
+    uint256 internal constant MAX_BOUND_TOKENS   = 14;
 
     uint256 internal constant MIN_FEE            = BONE / 10**6;
     uint256 internal constant INIT_FEE           = (2 * BONE) / 10**2;
     uint256 internal constant MAX_FEE            = BONE / 10;
     
-    uint256 internal constant INIT_EXIT_FEE      = BONE / 10**2;
+    uint256 internal constant INIT_EXIT_FEE      = (2 * BONE) / 10**2;
     uint256 internal constant MAX_EXIT_FEE       = (5 * BONE) / 10**2;
 
     uint256 internal constant MAX_STREAMING_FEE  = (4 * BONE) / 10**2;
     uint256 internal constant INIT_STREAMING_FEE = (2 * BONE) / 10**2;
     uint256 internal constant BPY                = 10512000;
 
-    uint256 internal constant MIN_WEIGHT         = BONE;
+    uint256 internal constant MIN_WEIGHT         = BONE / 2;
     uint256 internal constant MAX_WEIGHT         = BONE * 50;
-    uint256 internal constant MAX_TOTAL_WEIGHT   = BONE * 50;
+    uint256 internal constant MAX_TOTAL_WEIGHT   = BONE * 51;
     uint256 internal constant MIN_BALANCE        = BONE / 10**12;
 
     uint256 internal constant INIT_POOL_SUPPLY   = BONE * 100;

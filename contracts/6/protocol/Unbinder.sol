@@ -23,10 +23,11 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     /* ========== Storage ========== */
 
     address private _controller;
-    address private _routeToken;
     uint256 private _premium;
     IBundle private _bundle;
     IPancakeRouter02 private _router;
+
+    mapping(address=>bool) private _whitelist;
 
     /* ========== Modifiers ========== */
 
@@ -47,14 +48,13 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
 
     /* ========== Initialization ========== */
     
-    function initialize(address bundle, address router, address controller, address routeToken)
+    function initialize(address bundle, address router, address controller)
         public override
         initializer
     {
         __ReentrancyGuard_init();
         _bundle = IBundle(bundle);
         _router = IPancakeRouter02(router);
-        _routeToken = routeToken;
         _controller = controller;
         _premium = INIT_PREMIUM;
     }
@@ -67,6 +67,13 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     {
         require(_premium <= MAX_PREMIUM, "ERR_MAX_PREMIUM");
         _premium = premium;
+    }
+
+    function setRouteToken(address token, bool flag)
+        external override
+        _control_
+    {
+        _whitelist[token] = flag;
     }
 
     /* ========== Bundle Interaction ========== */
@@ -101,6 +108,13 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         return _premium;
     }
 
+    function isWhitelisted(address token)
+        external view override
+        returns (bool)
+    {
+        return _whitelist[token];
+    }
+
     /** @dev This function and contract are intended to allow constrained
      *  swaps from an unbound token back to bound tokens. Ensures that erroneously
      *  sent tokens / small amounts of unbound tokens are redistributed back to 
@@ -113,7 +127,7 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
      *  @param token Address of token to distribute back to Bundle
      *  @param amount Amount of token to redistribute
      */
-    function distributeUnboundToken(address token, uint256 amount, uint256 deadline)
+    function distributeUnboundToken(address token, uint256 amount, uint256 deadline, address[] calldata routeTokens)
         external override
         nonReentrant
         _eoa_
@@ -124,14 +138,15 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
             IERC20Upgradeable(token).approve(address(_router), type(uint256).max);
         }
 
-        // Reward the caller with a portion of unbound tokens
-        uint256 userFee = amount.mul(_premium).div(BONE);
-        uint256 balance = amount.sub(userFee);
-        IERC20Upgradeable(token).transfer(msg.sender, userFee);
-
         address[] memory tokens = _bundle.getCurrentTokens();
+        require(routeTokens.length == tokens.length, "ERR_ROUTE_MISMATCH");
+
         uint256[] memory weights = new uint256[](tokens.length);
         uint256 totalWeight = 0;
+
+        // Reward the caller with a portion of unbound tokens
+        uint256 balance = amount.sub(amount.mul(_premium).div(BONE));
+        IERC20Upgradeable(token).transfer(msg.sender, amount.mul(_premium).div(BONE));
 
         // Assumes we can swap to tokens within the bundle
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -140,22 +155,24 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         }
 
         for (uint256 i = 0; i < tokens.length - 1; i++) {
+            // Ensure we don't swap on arbitrary pairs
+            require(_whitelist[routeTokens[i]], "ERR_ROUTE_NOT_WHITELISTED");
+
             address[] memory path = new address[](3);
 
             // Enforce reliably secure path set on initialization
             path[0] = token;
-            path[1] = _routeToken;
+            path[1] = routeTokens[i];
             path[2] = tokens[i];
 
-            uint256 input = balance.mul(weights[i]).div(totalWeight);
-            uint256[] memory expectedOut = _router.getAmountsOut(input, path);
+            uint256[] memory expectedOut = _router.getAmountsOut(balance.mul(weights[i]).div(totalWeight), path);
 
             require(expectedOut[path.length - 1] > 0, "ERR_BAD_SWAP");
             
             // Min amount out to be 97% of expectation
             // unbinder used infrequently enough s.t. these don't need to be too strict
             _router.swapExactTokensForTokens(
-                input, 
+                balance.mul(weights[i]).div(totalWeight), 
                 expectedOut[path.length - 1].mul(970).div(1000), 
                 path, 
                 address(_bundle), 

@@ -13,7 +13,6 @@ contract BundleFactory is Ownable, IBundleFactory {
     address private _unbinderBeacon;
     address private _bundleBeacon;
     address private _controller;
-    address private _rebalancer;
 
     /* ========== Events ========== */
 
@@ -50,14 +49,6 @@ contract BundleFactory is Ownable, IBundleFactory {
         _controller = controller;
     }
 
-    function setRebalancer(address rebalancer)
-        external override
-        onlyOwner
-    {
-        require(_rebalancer == address(0), "ERR_REBALANCER_SET");
-        _rebalancer = rebalancer;
-    }
-
     /* ========== Getters ========== */
 
     function getController()
@@ -65,13 +56,6 @@ contract BundleFactory is Ownable, IBundleFactory {
         returns (address)
     {
         return _controller;
-    }
-
-    function getRebalancer()
-        external view override
-        returns (address)
-    {
-        return _rebalancer;
     }
 
     /* ========== Deploy ========== */
@@ -92,8 +76,6 @@ contract BundleFactory is Ownable, IBundleFactory {
         _control_
         returns (address bundle, address unbinder)
     {
-        require(_rebalancer != address(0), "ERR_REBALANCER_NOT_SET");
-
         // Initializer called by controller, so just pass null data
         bytes memory data = "";
 

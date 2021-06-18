@@ -49,7 +49,7 @@ describe("MinterGuard", () => {
       "BundleToken",
       deployer
     )) as BundleToken__factory;
-    bundleToken = await BundleToken.deploy(132, 1000);
+    bundleToken = await BundleToken.deploy(await ethers.provider.getBlockNumber(), (await ethers.provider.getBlockNumber() + 1000));
     await bundleToken.deployed();
 
     const Minter = (await ethers.getContractFactory(
@@ -236,11 +236,12 @@ describe("MinterGuard", () => {
 
     it('should set bonus on Minter when Timelock is passed ETA', async() => {
       let eta = (await TimeHelpers.latest()).add(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
+      let block = (await ethers.provider.getBlockNumber() + 200);
       await timelockAsDev.queueTransaction(
         minterGuard.address, '0', 'setBonus(uint256,uint256,uint256)',
         ethers.utils.defaultAbiCoder.encode(
           ['uint256', 'uint256', 'uint256'],
-          [2, 888888, BONUS_LOCK_RATIO]), eta
+          [2, block, BONUS_LOCK_RATIO]), eta
       );
 
       await TimeHelpers.increase(TimeHelpers.duration.days(ethers.BigNumber.from('4')));
@@ -249,11 +250,11 @@ describe("MinterGuard", () => {
         minterGuard.address, '0', 'setBonus(uint256,uint256,uint256)',
         ethers.utils.defaultAbiCoder.encode(
           ['uint256', 'uint256', 'uint256'],
-          [2, 888888, BONUS_LOCK_RATIO]), eta
+          [2, block, BONUS_LOCK_RATIO]), eta
       );
 
       expect(await minter.bonusMultiplier()).to.be.bignumber.eq(2);
-      expect(await minter.bonusEndBlock()).to.be.bignumber.eq(888888);
+      expect(await minter.bonusEndBlock()).to.be.bignumber.eq(block);
       expect(await minter.bonusLockRatio()).to.be.bignumber.eq(BONUS_LOCK_RATIO);
     });
 

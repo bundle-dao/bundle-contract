@@ -26,8 +26,9 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     
     address private _controller;
     address private _bundleToken;
+    address private _dev;
     uint256 private _premium;
-    uint256 private _tierLock;
+    bool private _lock;
     IPancakeRouter02 private _router;
 
     mapping(address=>bool) private _poolAuth;
@@ -46,7 +47,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
 
     /* ========== Initialization ========== */
     
-    function initialize(address router, address controller, address bundleToken)
+    function initialize(address router, address controller, address bundleToken, address dev)
         public
         initializer
     {
@@ -55,7 +56,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _bundleToken = bundleToken;
         _router = IPancakeRouter02(router);
         _premium = INIT_PREMIUM;
-        _tierLock = 0;
+        _lock = true;
+        _dev = dev;
     }
 
     /* ========== Control ========== */
@@ -75,11 +77,18 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _poolAuth[pool] = flag;
     }
 
-    function setTierLock(uint256 tierLock)
+    function setLock(bool lock) 
         external override
         _control_
     {
-        _tierLock = tierLock;
+        _lock = lock;
+    }
+
+    function setDev(address dev)
+        external override
+    {
+        require(msg.sender == _dev, "ERR_NOT_DEV");
+        _dev = dev;
     }
 
     /* ========== Getters ========== */
@@ -96,6 +105,27 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         returns (uint256)
     {
         return _premium;
+    }
+
+    function getDev()
+        external view override
+        returns (address)
+    {
+        return _dev;
+    }
+
+    function isLocked()
+        external view override
+        returns (bool)
+    {
+        return _lock;
+    }
+
+    function isWhitelisted(address pool)
+        external view override
+        returns (bool)
+    {
+        return _poolAuth[pool];
     }
 
     /** @dev This function allows the user to execute controlled arbitrage trades against a 
@@ -121,6 +151,11 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         nonReentrant
         _eoa_
     {
+        // Lock to developer during early access
+        if (_lock) {
+            require(msg.sender == _dev, "ERR_NOT_DEV");
+        }
+
         // Bundle validation
         require(_poolAuth[pool], "ERR_POOL_WHITELIST");
         require(IBundle(pool).isBound(tokenIn), "ERR_IN_NOT_BOUND");

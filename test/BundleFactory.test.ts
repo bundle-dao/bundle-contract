@@ -58,7 +58,6 @@ describe("BundleFactory", () => {
 
         // Set unbinder and controller to deployer for testing
         await bundleFactory.setController(await deployer.getAddress());
-        await bundleFactory.setRebalancer(await deployer.getAddress());
 
         bundleFactoryAsDeployer = BundleFactory__factory.connect(bundleFactory.address, deployer);
     });
@@ -66,20 +65,18 @@ describe("BundleFactory", () => {
     context('deploy', async() => {
         it('should have set control variables', async() => {
             expect(await bundleFactory.getController()).to.eq(await deployer.getAddress());
-            expect(await bundleFactory.getRebalancer()).to.eq(await deployer.getAddress());
         });
 
         it('should deploy proxy contracts', async() => {
-            bundleFactory.on("LogDeploy", async (bundle, unbinder) => {
-                let bundleContract = Bundle__factory.connect(bundle, deployer);
-                let unbinderContract = Unbinder__factory.connect(unbinder, deployer);
-
-                // Test that the proxies behave like contracts at expected state
-                expect(await bundleContract.isPublicSwap()).to.eq(false);
-                expect(await unbinderContract.getBundle()).to.eq(ethers.constants.AddressZero);
-            });
-
             await bundleFactory.deploy("Test", "TST");
+            const bundle = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args.bundle;
+            const bundleContract = Bundle__factory.connect(bundle, deployer);
+            const unbinder = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args.unbinder;
+            const unbinderContract = Unbinder__factory.connect(unbinder, deployer);
+
+            // Test that the proxies behave like contracts at expected state
+            expect(await bundleContract.isPublicSwap()).to.eq(false);
+            expect(await unbinderContract.getBundle()).to.eq(ethers.constants.AddressZero);
         });
     });
 });

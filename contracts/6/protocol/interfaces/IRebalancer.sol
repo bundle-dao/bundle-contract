@@ -6,11 +6,19 @@ interface IRebalancer {
 
     function setWhitelist(address pool, bool flag) external;
 
-    function setTierLock(uint256 tierLock) external;
+    function setLock(bool lock) external;
+
+    function setDev(address dev) external;
 
     function getController() external view returns (address);
 
     function getPremium() external view returns (uint256);
+
+    function isWhitelisted(address pool) external view returns (bool);
+
+    function getDev() external view returns (address);
+
+    function isLocked() external view returns (bool);
 
     function swap(
         address pool,
