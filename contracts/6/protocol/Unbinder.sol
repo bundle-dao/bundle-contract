@@ -69,13 +69,6 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         _premium = premium;
     }
 
-    function setRouteToken(address token, bool flag)
-        external override
-        _control_
-    {
-        _whitelist[token] = flag;
-    }
-
     /* ========== Bundle Interaction ========== */
     
     function handleUnboundToken(address token)
@@ -106,13 +99,6 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         returns (uint256)
     {
         return _premium;
-    }
-
-    function isWhitelisted(address token)
-        external view override
-        returns (bool)
-    {
-        return _whitelist[token];
     }
 
     /** @dev This function and contract are intended to allow constrained
@@ -155,9 +141,6 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         }
 
         for (uint256 i = 0; i < tokens.length - 1; i++) {
-            // Ensure we don't swap on arbitrary pairs
-            require(_whitelist[routeTokens[i]], "ERR_ROUTE_NOT_WHITELISTED");
-
             address[] memory path = new address[](3);
 
             // Enforce reliably secure path set on initialization

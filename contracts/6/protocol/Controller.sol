@@ -121,6 +121,10 @@ contract Controller is Initializable, OwnableUpgradeable {
         _rebalancer.setLock(lock);
     }
 
+    function setOracle(address oracle) external onlyOwner {
+        _rebalancer.setOracle(oracle);
+    }
+
     /* ========== Unbinder ========== */
 
     function setUnbinderPremium(
@@ -132,19 +136,6 @@ contract Controller is Initializable, OwnableUpgradeable {
     {
         for (uint256 i = 0; i < unbinders.length; i++) {
             IUnbinder(unbinders[i]).setPremium(premium);
-        }
-    }
-
-    function setRouteToken(
-        address[] calldata unbinders, 
-        address token,
-        bool flag
-    )
-        external
-        onlyOwner
-    {
-        for (uint256 i = 0; i < unbinders.length; i++) {
-            IUnbinder(unbinders[i]).setRouteToken(token, flag);
         }
     }
 

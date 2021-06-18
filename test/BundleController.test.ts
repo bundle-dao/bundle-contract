@@ -125,6 +125,12 @@ describe("Controller", () => {
             await controllerAsDeployer.setLock(false);
             expect(await rebalancer.isLocked()).to.eq(false);
         });
+
+        it('sets the oracle', async () => {
+            expect(await rebalancer.getOracle()).to.eq(ethers.constants.AddressZero);
+            await controllerAsDeployer.setOracle(await deployer.getAddress());
+            expect(await rebalancer.getOracle()).to.eq(await deployer.getAddress());
+        });
     });
 
     context('unbinder', async () => {
@@ -136,10 +142,6 @@ describe("Controller", () => {
             // Set premium
             await controllerAsDeployer.setUnbinderPremium([newUnbinder.address], ethers.utils.parseEther('1').mul(5).div(100));
             expect(await newUnbinder.getPremium()).to.be.bignumber.and.eq(ethers.utils.parseEther('1').mul(5).div(100));
-
-            // Whitelist route token
-            await controllerAsDeployer.setRouteToken([newUnbinder.address], ethers.constants.AddressZero, true);
-            expect(await newUnbinder.isWhitelisted(ethers.constants.AddressZero)).to.eq(true);
         });
     });
 

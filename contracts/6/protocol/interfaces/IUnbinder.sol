@@ -15,13 +15,9 @@ interface IUnbinder {
 
     function setPremium(uint256 premium) external;
 
-    function setRouteToken(address token, bool flag) external;
-
     function getPremium() external view returns (uint256);
 
     function getController() external view returns (address);
 
     function getBundle() external view returns (address);
-
-    function isWhitelisted(address token) external view returns (bool);
 }

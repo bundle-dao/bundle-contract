@@ -10,6 +10,8 @@ interface IRebalancer {
 
     function setDev(address dev) external;
 
+    function setOracle(address oracle) external;
+
     function getController() external view returns (address);
 
     function getPremium() external view returns (uint256);
@@ -17,6 +19,8 @@ interface IRebalancer {
     function isWhitelisted(address pool) external view returns (bool);
 
     function getDev() external view returns (address);
+
+    function getOracle() external view returns (address);
 
     function isLocked() external view returns (bool);
 

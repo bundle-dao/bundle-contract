@@ -11,6 +11,7 @@ import "./interfaces/IUnbinder.sol";
 import "./interfaces/IBundle.sol";
 import "./interfaces/IRebalancer.sol";
 import "./interfaces/IBundleLock.sol";
+import "./interfaces/IPriceOracle.sol";
 
 contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -30,6 +31,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     uint256 private _premium;
     bool private _lock;
     IPancakeRouter02 private _router;
+    IPriceOracle private _oracle;
 
     mapping(address=>bool) private _poolAuth;
 
@@ -91,6 +93,13 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _dev = dev;
     }
 
+    function setOracle(address oracle)
+        external override
+        _control_
+    {
+        _oracle = IPriceOracle(oracle);
+    }
+
     /* ========== Getters ========== */
 
     function getController()
@@ -112,6 +121,13 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         returns (address)
     {
         return _dev;
+    }
+
+    function getOracle()
+        external view override
+        returns (address)
+    {
+        return address(_oracle);
     }
 
     function isLocked()
