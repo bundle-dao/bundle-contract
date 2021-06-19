@@ -46,7 +46,8 @@ describe("Bundle", () => {
     let tokens: MockERC20[];
     let rebalancer: Rebalancer;
 
-    const errorDelta = 10 ** 8;
+    let bundleAddr: string;
+    let unbinderAddr: string;
 
     beforeEach(async() => {
         [deployer, alice] = await ethers.getSigners();
@@ -121,7 +122,8 @@ describe("Bundle", () => {
 
         // Deploy bundle
         await (await controllerAsDeployer.deploy("Test", "TST")).wait();
-        let bundleAddr = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args.bundle;
+        bundleAddr = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args.bundle;
+        unbinderAddr = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args.unbinder;
         bundleAsDeployer = Bundle__factory.connect(bundleAddr, deployer);
         bundleAsAlice = Bundle__factory.connect(bundleAddr, alice);
     });
@@ -161,6 +163,11 @@ describe("Bundle", () => {
             expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(0);
             expect(await bundleAsAlice.balanceOf(controller.address)).to.be.bignumber.and.eq(ethers.utils.parseEther('2').div(10));
             expect(await bundleAsAlice.balanceOf(await deployer.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('100'));
+
+            // Should revert when retrying
+            await expect(
+                bundleAsAlice.exitPool(ethers.utils.parseEther('10'), [ethers.utils.parseEther('980'), ethers.utils.parseEther('490')])
+            ).to.be.reverted;
         });
 
         it('reverts if pool not initialized', async () => {
@@ -175,6 +182,104 @@ describe("Bundle", () => {
             await expect(
                 bundleAsAlice.joinPool(ethers.utils.parseEther('10'), [ethers.utils.parseEther('1000'), ethers.utils.parseEther('500')])
             ).to.be.reverted;
+        });
+
+        it('reverts when user sets swap fee', async () => {
+            await expect(bundleAsAlice.setSwapFee(0)).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when user sets streaming fee', async () => {
+            await expect(bundleAsAlice.setStreamingFee(0)).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when user sets rebalancable', async () => {
+            await expect(bundleAsAlice.setRebalancable(false)).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when user sets public swap', async () => {
+            await expect(bundleAsAlice.setPublicSwap(false)).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when user sets min balance', async () => {
+            await expect(bundleAsAlice.setMinBalance(token0AsAlice.address, 0)).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when user sets exit fee', async () => {
+            await expect(bundleAsAlice.setExitFee(0)).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when user collects streaming fee', async () => {
+            await expect(bundleAsAlice.collectStreamingFee()).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when setting up the pool', async () => {
+            await expect(bundleAsAlice.setup(
+                [token0AsDeployer.address, token1AsDeployer.address],
+                [ethers.utils.parseEther('10000'), ethers.utils.parseEther('5000')],
+                [ethers.utils.parseEther('2'), ethers.utils.parseEther('1')],
+                await deployer.getAddress()
+            )).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when reweighting', async () => {
+            await expect(bundleAsAlice.reweighTokens(
+                [token0AsDeployer.address, token1AsDeployer.address],
+                [ethers.utils.parseEther('1'), ethers.utils.parseEther('1')]
+            )).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts when reweighting', async () => {
+            await expect(bundleAsAlice.reindexTokens(
+                [token0AsDeployer.address, token1AsDeployer.address],
+                [ethers.utils.parseEther('1'), ethers.utils.parseEther('1')],
+                [0, 0]
+            )).to.be.revertedWith("ERR_NOT_CONTROLLER");
+        });
+
+        it('reverts on swaps when not rebalancer', async () => {
+            await expect(bundleAsAlice.swapExactAmountIn(
+                token0AsAlice.address,
+                ethers.utils.parseEther('1'),
+                token1AsAlice.address,
+                ethers.utils.parseEther('1'),
+                ethers.utils.parseEther('1')
+            )).to.be.revertedWith("ERR_NOT_PUBLIC");
+
+            await expect(bundleAsAlice.swapExactAmountOut(
+                token0AsAlice.address,
+                ethers.utils.parseEther('1'),
+                token1AsAlice.address,
+                ethers.utils.parseEther('1'),
+                ethers.utils.parseEther('1')
+            )).to.be.revertedWith("ERR_NOT_PUBLIC");
+
+            // Approve transfers for bundle
+            await token0AsDeployer.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
+            await token1AsDeployer.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
+
+            await controllerAsDeployer.setup(
+                bundleAsDeployer.address,
+                [token0AsDeployer.address, token1AsDeployer.address],
+                [ethers.utils.parseEther('10000'), ethers.utils.parseEther('5000')],
+                [ethers.utils.parseEther('2'), ethers.utils.parseEther('1')],
+                await deployer.getAddress()
+            );
+
+            await expect(bundleAsAlice.swapExactAmountIn(
+                token0AsAlice.address,
+                ethers.utils.parseEther('1'),
+                token1AsAlice.address,
+                ethers.utils.parseEther('1'),
+                ethers.utils.parseEther('1')
+            )).to.be.revertedWith("ERR_NOT_REBALANCER");
+
+            await expect(bundleAsAlice.swapExactAmountOut(
+                token0AsAlice.address,
+                ethers.utils.parseEther('1'),
+                token1AsAlice.address,
+                ethers.utils.parseEther('1'),
+                ethers.utils.parseEther('1')
+            )).to.be.revertedWith("ERR_NOT_REBALANCER");
         });
     });
 });
