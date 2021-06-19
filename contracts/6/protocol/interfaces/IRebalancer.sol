@@ -12,6 +12,8 @@ interface IRebalancer {
 
     function setOracle(address oracle) external;
 
+    function setGap(uint256 gap) external;
+
     function getController() external view returns (address);
 
     function getPremium() external view returns (uint256);
@@ -21,6 +23,8 @@ interface IRebalancer {
     function getDev() external view returns (address);
 
     function getOracle() external view returns (address);
+
+    function getGap() external view returns (uint256);
 
     function isLocked() external view returns (bool);
 

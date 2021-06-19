@@ -22,6 +22,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     uint256 internal constant BONE         = 10**18;
     uint256 internal constant INIT_PREMIUM = (2 * BONE) / 10**2;
     uint256 internal constant MAX_PREMIUM  = (25 * BONE) / 10**2;
+    uint256 internal constant INIT_ORACLE_GAP = (5 * BONE) / 10**2;
 
     /* ========== Storage ========== */
     
@@ -29,6 +30,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     address private _bundleToken;
     address private _dev;
     uint256 private _premium;
+    uint256 private _gap;
     bool private _lock;
     IPancakeRouter02 private _router;
     IPriceOracle private _oracle;
@@ -60,6 +62,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _premium = INIT_PREMIUM;
         _lock = true;
         _dev = dev;
+        _gap = INIT_ORACLE_GAP;
     }
 
     /* ========== Control ========== */
@@ -100,6 +103,13 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _oracle = IPriceOracle(oracle);
     }
 
+    function setGap(uint256 gap)
+        external override
+        _control_
+    {
+        _gap = gap;
+    }
+
     /* ========== Getters ========== */
 
     function getController()
@@ -128,6 +138,13 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         returns (address)
     {
         return address(_oracle);
+    }
+
+    function getGap()
+        external view override
+        returns (uint256)
+    {
+        return _gap;
     }
 
     function isLocked()
@@ -198,6 +215,24 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
 
         // Swap tokenOut tokenIn on separate DEX
         uint256[] memory amountsTokenOut = _router.swapExactTokensForTokens(tokenAmountOut, amountIn, path, address(this), deadline);
+
+        // Update oracle and check reference prices
+        if (_gap > 0) {
+            _oracle.updateReference(tokenIn);
+            _oracle.updateReference(tokenOut);
+            uint256 inToPeg = _oracle.consultReference(tokenIn, amountsTokenOut[path.length - 1]);
+            uint256 outToPeg = _oracle.consultReference(tokenOut, tokenAmountOut);
+            uint256 diff;
+
+            if (inToPeg > outToPeg) {
+                diff = inToPeg.sub(outToPeg);
+            } else {
+                diff = outToPeg.sub(inToPeg);
+            }
+
+            // Ensure differences in prices to not exceed set range
+            require(inToPeg.mul(_gap).div(BONE) >= diff, "ERR_BAD_SWAP");
+        }
 
         // Send funds back to user
         uint256 userFee = amountsTokenOut[path.length - 1].sub(amountIn).mul(_premium).div(BONE);

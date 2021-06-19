@@ -125,6 +125,10 @@ contract Controller is Initializable, OwnableUpgradeable {
         _rebalancer.setOracle(oracle);
     }
 
+    function setGap(uint256 gap) external onlyOwner {
+        _rebalancer.setGap(gap);
+    }
+
     /* ========== Unbinder ========== */
 
     function setUnbinderPremium(
