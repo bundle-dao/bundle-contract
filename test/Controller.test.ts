@@ -77,13 +77,13 @@ describe("Controller", () => {
         ) as Controller;
         await controller.deployed();
 
-        // Deploy controller
+        // Deploy rebalancer
         const Rebalancer = await ethers.getContractFactory("Rebalancer");
         rebalancer = await upgrades.deployProxy(
             Rebalancer, 
             [ethers.constants.AddressZero, controller.address, ethers.constants.AddressZero, await deployer.getAddress()]
         ) as Rebalancer;
-        await controller.deployed();
+        await rebalancer.deployed();
 
         // Set unbinder and controller to deployer for testing
         await bundleFactory.setController(controller.address);
@@ -95,7 +95,7 @@ describe("Controller", () => {
         controllerAsAlice = Controller__factory.connect(controller.address, alice);
 
         tokens = new Array();
-        for(let i = 0; i < 4; i++) {
+        for(let i = 0; i < 2; i++) {
             const MockERC20 = (await ethers.getContractFactory(
                 "MockERC20",
                 deployer
