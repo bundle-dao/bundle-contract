@@ -182,7 +182,7 @@ describe('Controller', () => {
                 await deployer.getAddress()
             );
 
-            let setupTime = (await (await ethers.provider.getBlock((await ethers.provider.getBlockNumber())))).timestamp;
+            let setupTime = (await await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp;
 
             expect(await newBundle.isPublicSwap()).to.eq(true);
 
@@ -211,8 +211,13 @@ describe('Controller', () => {
             await controllerAsDeployer.setExitFee(newBundle.address, ethers.utils.parseEther('1').div(100));
             expect(await newBundle.getExitFee()).to.be.bignumber.and.eq(ethers.utils.parseEther('1').div(100));
 
-            let preCollectionTime = (await (await ethers.provider.getBlock((await ethers.provider.getBlockNumber())))).timestamp;
-            let amountToIncrease = duration.days(ethers.BigNumber.from('1')).add(setupTime).sub(preCollectionTime).sub(1);
+            let preCollectionTime = (await await ethers.provider.getBlock(await ethers.provider.getBlockNumber()))
+                .timestamp;
+            let amountToIncrease = duration
+                .days(ethers.BigNumber.from('1'))
+                .add(setupTime)
+                .sub(preCollectionTime)
+                .sub(1);
             await increase(amountToIncrease);
 
             // Collects streaming fee
@@ -320,8 +325,8 @@ describe('Controller', () => {
             );
 
             expect((await controller.getBundleMetadata(newBundle.address))[3]).to.be.bignumber.and.eq(
-                (await (await ethers.provider.getBlock((await ethers.provider.getBlockNumber())))).timestamp
+                (await await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp
             );
-        })
+        });
     });
 });

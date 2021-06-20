@@ -194,22 +194,26 @@ describe('Bundle', () => {
             await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
                 ethers.utils.parseEther('500'),
                 ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('500')
+                ethers.utils.parseEther('500'),
             ]);
             expect(await bundleAsDeployer.getDenormalizedWeight(token2AsDeployer.address)).to.be.bignumber.and.eq(
                 ethers.utils.parseEther('1')
             );
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('4'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('4')
+            );
 
             await increase(duration.hours(ethers.BigNumber.from('12')).sub(1));
 
             await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
                 ethers.utils.parseEther('500'),
                 ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('500')
+                ethers.utils.parseEther('500'),
             ]);
 
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('3'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3')
+            );
             expect(await bundleAsDeployer.isBound(token2AsDeployer.address)).to.eq(false);
             // Result of negligible rounding error
             expect(await token2AsDeployer.balanceOf(unbinderAddr)).to.be.bignumber.and.eq('10999999999999999999500');
@@ -257,22 +261,26 @@ describe('Bundle', () => {
             await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
                 ethers.utils.parseEther('500'),
                 ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('500')
+                ethers.utils.parseEther('500'),
             ]);
             expect(await bundleAsDeployer.getDenormalizedWeight(token2AsDeployer.address)).to.be.bignumber.and.eq(
                 ethers.utils.parseEther('1')
             );
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('4'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('4')
+            );
 
             await increase(duration.hours(ethers.BigNumber.from('12')).sub(1));
 
             await bundleAsAlice.exitPool(ethers.utils.parseEther('5'), [
                 ethers.utils.parseEther('400'),
                 ethers.utils.parseEther('100'),
-                ethers.utils.parseEther('400')
+                ethers.utils.parseEther('400'),
             ]);
 
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('3'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3')
+            );
             expect(await bundleAsDeployer.isBound(token2AsDeployer.address)).to.eq(false);
             // Result of negligible rounding error
             expect(await token2AsDeployer.balanceOf(unbinderAddr)).to.be.bignumber.and.eq('10009999999999999996500');
@@ -305,12 +313,12 @@ describe('Bundle', () => {
             // Should be bound but not ready
             expect(await bundleAsDeployer.isReady(token2AsDeployer.address)).to.eq(false);
             expect(await bundleAsDeployer.isBound(token2AsDeployer.address)).to.eq(true);
-            
+
             // Join pool as alice
             await bundleAsAlice.joinPool(ethers.utils.parseEther('10'), [
                 ethers.utils.parseEther('1000'),
                 ethers.utils.parseEther('500'),
-                ethers.utils.parseEther('50')
+                ethers.utils.parseEther('50'),
             ]);
 
             expect(await bundleAsDeployer.totalSupply()).to.eq(ethers.utils.parseEther('110'));
@@ -318,23 +326,25 @@ describe('Bundle', () => {
             expect(await bundleAsDeployer.isReady(token2AsDeployer.address)).to.eq(false);
 
             // Shouldn't allow withdrawals on non-ready tokens
-            await expect(bundleAsAlice.exitPool(ethers.utils.parseEther('5'), [
-                ethers.utils.parseEther('400'),
-                ethers.utils.parseEther('200'),
-                ethers.utils.parseEther('50')
-            ])).to.be.revertedWith('ERR_NOT_READY');
+            await expect(
+                bundleAsAlice.exitPool(ethers.utils.parseEther('5'), [
+                    ethers.utils.parseEther('400'),
+                    ethers.utils.parseEther('200'),
+                    ethers.utils.parseEther('50'),
+                ])
+            ).to.be.revertedWith('ERR_NOT_READY');
 
             // Can withdraw if only taking ready tokens
             await bundleAsAlice.exitPool(ethers.utils.parseEther('10'), [
                 ethers.utils.parseEther('490'),
                 ethers.utils.parseEther('240'),
-                ethers.utils.parseEther('0')
+                ethers.utils.parseEther('0'),
             ]);
 
             await bundleAsAlice.joinPool(ethers.utils.parseEther('400'), [
                 ethers.utils.parseEther('40000'),
                 ethers.utils.parseEther('20000'),
-                ethers.utils.parseEther('400')
+                ethers.utils.parseEther('400'),
             ]);
 
             expect(await token2AsAlice.balanceOf(bundleAsAlice.address)).to.eq('409201596806387225500');
@@ -346,7 +356,7 @@ describe('Bundle', () => {
             await bundleAsAlice.exitPool(ethers.utils.parseEther('50'), [
                 ethers.utils.parseEther('500'),
                 ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('40')
+                ethers.utils.parseEther('40'),
             ]);
 
             expect(await token2AsAlice.balanceOf(bundleAsAlice.address)).to.eq('369115874608240535994');
@@ -357,12 +367,16 @@ describe('Bundle', () => {
             await bundleAsAlice.exitPool(ethers.utils.parseEther('50'), [
                 ethers.utils.parseEther('500'),
                 ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('40')
+                ethers.utils.parseEther('40'),
             ]);
 
             // Should reach expected denorms
-            expect(await bundleAsAlice.getDenormalizedWeight(token2AsAlice.address)).to.be.bignumber.and.eq(ethers.utils.parseEther('2'));
-            expect(await bundleAsAlice.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('5'));
+            expect(await bundleAsAlice.getDenormalizedWeight(token2AsAlice.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2')
+            );
+            expect(await bundleAsAlice.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('5')
+            );
         });
 
         it('updates weights linearly', async () => {
@@ -401,7 +415,9 @@ describe('Bundle', () => {
             expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
                 ethers.utils.parseEther('1.5')
             );
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('2.5'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2.5')
+            );
 
             await increase(duration.hours(ethers.BigNumber.from('12')));
 
@@ -481,7 +497,7 @@ describe('Bundle', () => {
             await controllerAsDeployer.reweighTokens(
                 bundleAsDeployer.address,
                 [token0AsDeployer.address, token1AsDeployer.address, token2AsDeployer.address],
-                [ethers.utils.parseEther('2'), ethers.utils.parseEther('1'), 0],
+                [ethers.utils.parseEther('2'), ethers.utils.parseEther('1'), 0]
             );
 
             await increase(duration.hours(ethers.BigNumber.from('12')).sub(1));
@@ -489,27 +505,31 @@ describe('Bundle', () => {
             await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
                 ethers.utils.parseEther('500'),
                 ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('500')
+                ethers.utils.parseEther('500'),
             ]);
             expect(await bundleAsDeployer.getDenormalizedWeight(token2AsDeployer.address)).to.be.bignumber.and.eq(
                 ethers.utils.parseEther('1')
             );
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('4'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('4')
+            );
 
             await increase(duration.hours(ethers.BigNumber.from('12')).sub(1));
 
             await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
                 ethers.utils.parseEther('500'),
                 ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('500')
+                ethers.utils.parseEther('500'),
             ]);
 
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('3'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3')
+            );
             expect(await bundleAsDeployer.isBound(token2AsDeployer.address)).to.eq(false);
             // Result of negligible rounding error
             expect(await token2AsDeployer.balanceOf(unbinderAddr)).to.be.bignumber.and.eq('10999999999999999999500');
             expect(await token2AsDeployer.balanceOf(token2AsDeployer.address)).to.be.bignumber.and.eq('0');
-        })
+        });
 
         it('reweighs correctly when decreasing', async () => {
             await setup();
@@ -546,7 +566,9 @@ describe('Bundle', () => {
             expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
                 ethers.utils.parseEther('1.5')
             );
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('2.5'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2.5')
+            );
 
             await increase(duration.hours(ethers.BigNumber.from('12')));
 
@@ -597,7 +619,9 @@ describe('Bundle', () => {
             expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
                 ethers.utils.parseEther('2.5')
             );
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(ethers.utils.parseEther('3.5'));
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3.5')
+            );
 
             await increase(duration.hours(ethers.BigNumber.from('12')));
 
