@@ -18,23 +18,17 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     await deploy('MinterGuard', {
         from: deployer,
-        args: [
-            deployer,
-            MINTER,
-        ],
+        args: [deployer, MINTER],
         log: true,
         deterministicDeployment: false,
     });
 
-    console.log(">> Verifying MinterGuard");
-    await hre.run("verify:verify", {
+    console.log('>> Verifying MinterGuard');
+    await hre.run('verify:verify', {
         address: (await deployments.get('MinterGuard')).address,
-        constructorArguments: [
-            deployer,
-            MINTER,
-        ],
+        constructorArguments: [deployer, MINTER],
     });
-    console.log("✅ Done");
+    console.log('✅ Done');
 };
 
 export default deploy;

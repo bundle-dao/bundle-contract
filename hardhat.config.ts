@@ -4,11 +4,11 @@ dotEnvConfig();
 import { HardhatUserConfig } from 'hardhat/types';
 
 import '@openzeppelin/hardhat-upgrades';
-import '@typechain/hardhat'
+import '@typechain/hardhat';
 import '@nomiclabs/hardhat-waffle';
 import 'hardhat-deploy';
 import 'solidity-coverage';
-import "@nomiclabs/hardhat-etherscan";
+import '@nomiclabs/hardhat-etherscan';
 
 const config: HardhatUserConfig = {
     defaultNetwork: 'hardhat',
@@ -85,8 +85,8 @@ const config: HardhatUserConfig = {
         target: 'ethers-v5',
     },
     etherscan: {
-        apiKey: process.env.BSCSCAN_API_KEY!
-      }
+        apiKey: process.env.BSCSCAN_API_KEY!,
+    },
 };
 
 export default config;

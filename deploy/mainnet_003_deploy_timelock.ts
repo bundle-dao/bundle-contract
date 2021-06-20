@@ -19,23 +19,17 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     await deploy('Timelock', {
         from: deployer,
-        args: [
-            DEV_ADDR,
-            DELAY,
-        ],
+        args: [DEV_ADDR, DELAY],
         log: true,
         deterministicDeployment: false,
     });
 
-    console.log(">> Verifying Timelock");
-    await hre.run("verify:verify", {
+    console.log('>> Verifying Timelock');
+    await hre.run('verify:verify', {
         address: (await deployments.get('Timelock')).address,
-        constructorArguments: [
-            DEV_ADDR,
-            DELAY,
-        ],
+        constructorArguments: [DEV_ADDR, DELAY],
     });
-    console.log("✅ Done");
+    console.log('✅ Done');
 };
 
 export default deploy;

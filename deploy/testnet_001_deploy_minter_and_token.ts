@@ -26,60 +26,47 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     await deploy('BundleToken', {
         from: deployer,
-        args: [
-            LOCK_START_RELEASE,
-            LOCK_END_RELEASE,
-        ],
+        args: [LOCK_START_RELEASE, LOCK_END_RELEASE],
         log: true,
         deterministicDeployment: false,
     });
 
     const bundleToken = BundleToken__factory.connect(
-        (await deployments.get('BundleToken')).address, (await ethers.getSigners())[0]);
+        (await deployments.get('BundleToken')).address,
+        (await ethers.getSigners())[0]
+    );
 
     await deploy('Minter', {
         from: deployer,
-        args: [
-            bundleToken.address,
-            deployer,
-            REWARD_PER_BLOCK,
-            START_BLOCK
-        ],
+        args: [bundleToken.address, deployer, REWARD_PER_BLOCK, START_BLOCK],
         log: true,
         deterministicDeployment: false,
     });
-    const minter = Minter__factory.connect(
-        (await deployments.get('Minter')).address, (await ethers.getSigners())[0]);
+    const minter = Minter__factory.connect((await deployments.get('Minter')).address, (await ethers.getSigners())[0]);
 
-    console.log(">> Transferring ownership of BundleToken from deployer to Minter");
+    console.log('>> Transferring ownership of BundleToken from deployer to Minter');
     await bundleToken.transferOwnership(minter.address, { gasLimit: '500000' });
-    console.log("✅ Done");
+    console.log('✅ Done');
 
-    console.log(`>> Set Minter bonus to BONUS_MULTIPLIER: "${BONUS_MULTIPLIER}", BONUS_END_BLOCK: "${BONUS_END_BLOCK}", LOCK_BPS: ${BONUS_LOCK_BPS}`);
+    console.log(
+        `>> Set Minter bonus to BONUS_MULTIPLIER: "${BONUS_MULTIPLIER}", BONUS_END_BLOCK: "${BONUS_END_BLOCK}", LOCK_BPS: ${BONUS_LOCK_BPS}`
+    );
     await minter.setBonus(BONUS_MULTIPLIER, BONUS_END_BLOCK, BONUS_LOCK_BPS);
-    console.log("✅ Done");
+    console.log('✅ Done');
 
-    console.log(">> Verifying BundleToken");
-    await hre.run("verify:verify", {
+    console.log('>> Verifying BundleToken');
+    await hre.run('verify:verify', {
         address: (await deployments.get('BundleToken')).address,
-        constructorArguments: [
-          LOCK_START_RELEASE,
-          LOCK_END_RELEASE
-        ],
+        constructorArguments: [LOCK_START_RELEASE, LOCK_END_RELEASE],
     });
-    console.log("✅ Done");
+    console.log('✅ Done');
 
-    console.log(">> Verifying Minter");
-    await hre.run("verify:verify", {
+    console.log('>> Verifying Minter');
+    await hre.run('verify:verify', {
         address: (await deployments.get('Minter')).address,
-        constructorArguments: [
-            bundleToken.address,
-            deployer,
-            REWARD_PER_BLOCK,
-            START_BLOCK
-        ],
+        constructorArguments: [bundleToken.address, deployer, REWARD_PER_BLOCK, START_BLOCK],
     });
-    console.log("✅ Done");
+    console.log('✅ Done');
 };
 
 export default deploy;

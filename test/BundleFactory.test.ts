@@ -1,8 +1,8 @@
-import { ethers } from "hardhat";
-import { Signer } from "ethers";
-import chai from "chai";
-import { solidity } from "ethereum-waffle";
-import "@openzeppelin/test-helpers";
+import { ethers } from 'hardhat';
+import { Signer } from 'ethers';
+import chai from 'chai';
+import { solidity } from 'ethereum-waffle';
+import '@openzeppelin/test-helpers';
 import {
     Bundle,
     Bundle__factory,
@@ -11,15 +11,15 @@ import {
     UpgradeableBeacon,
     UpgradeableBeacon__factory,
     Unbinder,
-    Unbinder__factory
-} from "../typechain";
+    Unbinder__factory,
+} from '../typechain';
 
 chai.use(solidity);
 const { expect } = chai;
 
-describe("BundleFactory", () => {
+describe('BundleFactory', () => {
     // Contract as Signer
-    let bundleFactoryAsDeployer: BundleFactory
+    let bundleFactoryAsDeployer: BundleFactory;
 
     // Accounts
     let deployer: Signer;
@@ -30,29 +30,30 @@ describe("BundleFactory", () => {
     let unbinderBeacon: UpgradeableBeacon;
     let bundleFactory: BundleFactory;
 
-    beforeEach(async() => {
+    beforeEach(async () => {
         [deployer] = await ethers.getSigners();
 
-        const UpgradeableBeacon = await ethers.getContractFactory(
-            "UpgradeableBeacon", deployer) as UpgradeableBeacon__factory;
+        const UpgradeableBeacon = (await ethers.getContractFactory(
+            'UpgradeableBeacon',
+            deployer
+        )) as UpgradeableBeacon__factory;
 
         // Deploy bundle and beacon
-        const Bundle = await ethers.getContractFactory("Bundle") as Bundle__factory;
+        const Bundle = (await ethers.getContractFactory('Bundle')) as Bundle__factory;
         bundle = await Bundle.deploy();
         await bundle.deployed();
         bundleBeacon = await UpgradeableBeacon.deploy(bundle.address);
         await bundleBeacon.deployed();
 
         // Deploy unbinder and beacon
-        const Unbinder = await ethers.getContractFactory("Unbinder") as Unbinder__factory;
+        const Unbinder = (await ethers.getContractFactory('Unbinder')) as Unbinder__factory;
         unbinder = await Unbinder.deploy();
         await unbinder.deployed();
         unbinderBeacon = await UpgradeableBeacon.deploy(unbinder.address);
         await unbinderBeacon.deployed();
 
         // Deploy factory
-        const BundleFactory: BundleFactory__factory = await ethers.getContractFactory(
-            "BundleFactory", deployer);
+        const BundleFactory: BundleFactory__factory = await ethers.getContractFactory('BundleFactory', deployer);
         bundleFactory = await BundleFactory.deploy(unbinderBeacon.address, bundleBeacon.address);
         await bundleFactory.deployed();
 
@@ -62,16 +63,18 @@ describe("BundleFactory", () => {
         bundleFactoryAsDeployer = BundleFactory__factory.connect(bundleFactory.address, deployer);
     });
 
-    context('deploy', async() => {
-        it('should have set control variables', async() => {
+    context('deploy', async () => {
+        it('should have set control variables', async () => {
             expect(await bundleFactory.getController()).to.eq(await deployer.getAddress());
         });
 
-        it('should deploy proxy contracts', async() => {
-            await bundleFactory.deploy("Test", "TST");
-            const bundle = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args.bundle;
+        it('should deploy proxy contracts', async () => {
+            await bundleFactory.deploy('Test', 'TST');
+            const bundle = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args
+                .bundle;
             const bundleContract = Bundle__factory.connect(bundle, deployer);
-            const unbinder = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args.unbinder;
+            const unbinder = (await bundleFactory.queryFilter(bundleFactory.filters.LogDeploy(null, null)))[0].args
+                .unbinder;
             const unbinderContract = Unbinder__factory.connect(unbinder, deployer);
 
             // Test that the proxies behave like contracts at expected state

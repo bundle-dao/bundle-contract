@@ -25,7 +25,7 @@ contract BConst {
 
     uint256 internal constant MAX_STREAMING_FEE  = (4 * BONE) / 10**2;
     uint256 internal constant INIT_STREAMING_FEE = (2 * BONE) / 10**2;
-    uint256 internal constant BPY                = 10512000;
+    uint256 internal constant BPY                = 365 days;
 
     uint256 internal constant MIN_WEIGHT         = BONE / 2;
     uint256 internal constant MAX_WEIGHT         = BONE * 50;
@@ -38,7 +38,9 @@ contract BConst {
     uint256 internal constant MAX_BPOW_BASE      = (2 * BONE) - 1 wei;
     uint256 internal constant BPOW_PRECISION     = BONE / 10**10;
 
-    uint256 internal constant TARGET_BLOCK_DELTA = 28800;
+    uint256 internal constant MAX_TARGET_DELTA   = 14 days;
+    uint256 internal constant INIT_TARGET_DELTA  = 7 days;
+    uint256 internal constant MIN_TARGET_DELTA   = 1 days;
 
     uint256 internal constant MAX_IN_RATIO       = BONE / 2;
     uint256 internal constant MAX_OUT_RATIO      = (BONE / 3) + 1 wei;

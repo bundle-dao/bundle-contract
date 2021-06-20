@@ -9,8 +9,8 @@ interface IBundle {
         bool ready;               // is token ready for swaps
         uint256 denorm;           // denormalized weight
         uint256 targetDenorm;     // target denormalized weight
-        uint256 targetBlock;      // target block to update by
-        uint256 lastUpdateBlock;  // last update block
+        uint256 targetTime;      // target block to update by
+        uint256 lastUpdateTime;  // last update block
         uint8 index;              // token index
         uint256 balance;          // token balance
     }
@@ -83,11 +83,15 @@ interface IBundle {
 
     function setExitFee(uint256 exitFee) external;
 
+    function setTargetDelta(uint256 targetDelta) external;
+
     function collectStreamingFee() external;
 
     function isPublicSwap() external view returns (bool);
 
     function isBound(address t) external view returns (bool);
+
+    function isReady(address t) external view returns (bool);
 
     function getNumTokens() external view returns (uint256) ;
 
@@ -105,7 +109,7 @@ interface IBundle {
 
     function getExitFee() external view returns (uint256);
 
-    function getLastStreamingBlock() external view returns (uint256);
+    function getLastStreamingTime() external view returns (uint256);
 
     function getController() external view returns (address);
 

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.6.12;
-pragma experimental ABIEncoderV2;
 
 import "./BToken.sol";
 import "./BMath.sol";
@@ -94,8 +93,11 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     // Streaming fee
     uint256 private _streamingFee;
 
-    // Start block for streaming fee
-    uint256 private _lastStreamingBlock;
+    // Start time for streaming fee
+    uint256 private _lastStreamingTime;
+
+    // Time delay for reweighting
+    uint256 private _targetDelta;
 
     // Is rebalancable
     bool private _rebalancable;
@@ -127,6 +129,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _streamingFee = INIT_STREAMING_FEE;
         _exitFee = INIT_EXIT_FEE;
         _publicSwap = false;
+        _targetDelta = INIT_TARGET_DELTA;
     }
 
     /** @dev Setup function to initialize the pool after contract creation */
@@ -161,8 +164,8 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
                 ready: true,
                 denorm: denorm,
                 targetDenorm: denorm,
-                targetBlock: 0,
-                lastUpdateBlock: 0,
+                targetTime: 0,
+                lastUpdateTime: 0,
                 index: uint8(i),
                 balance: balance
             });
@@ -176,7 +179,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         require(totalWeight <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
         _totalWeight = totalWeight;
         _publicSwap = true;
-        _lastStreamingBlock = block.number;
+        _lastStreamingTime = block.timestamp;
         _rebalancable = true;
         _setup = true;
         emit LogPublicSwapEnabled();
@@ -246,6 +249,16 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _exitFee = exitFee;
     }
 
+    function setTargetDelta(uint256 targetDelta)
+        external override
+        _logs_
+        _lock_
+        _control_
+    {
+        require(targetDelta >= MIN_TARGET_DELTA && targetDelta <= MAX_TARGET_DELTA, "ERR_TARGET_DELTA");
+        _targetDelta = targetDelta;
+    }
+
     function collectStreamingFee()
         external override
         _logs_
@@ -253,9 +266,9 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _control_
     {
         require(_setup, "ERR_SETUP");
-        require(_lastStreamingBlock < block.number, "ERR_COLLECTION_TO_SOON");
+        require(_lastStreamingTime < block.timestamp, "ERR_COLLECTION_TO_SOON");
 
-        uint256 blockDelta = bsub(block.number, _lastStreamingBlock);
+        uint256 timeDelta = bsub(block.timestamp, _lastStreamingTime);
 
         for (uint256 i = 0; i < _tokens.length; i++) {
             address token = _tokens[i];
@@ -263,7 +276,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             // Shouldnt withdraw tokens if not ready
             if (_records[token].ready) {
                 uint256 fee = bdiv(
-                    bmul(bmul(_records[token].balance, _streamingFee), blockDelta),
+                    bmul(bmul(_records[token].balance, _streamingFee), timeDelta),
                     BPY
                 );
 
@@ -272,7 +285,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             }
         }
 
-        _lastStreamingBlock = block.number;
+        _lastStreamingTime = block.timestamp;
     }
 
     /* ==========  Getters  ========== */
@@ -289,6 +302,13 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         returns (bool)
     {
         return _records[t].bound;
+    }
+
+    function isReady(address t)
+        external view override
+        returns (bool)
+    {
+        return _records[t].ready;
     }
 
     function getNumTokens()
@@ -358,12 +378,12 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         return _exitFee;
     }
 
-    function getLastStreamingBlock()
+    function getLastStreamingTime()
         external view override
         _viewlock_
         returns (uint256)
     {
-        return _lastStreamingBlock;
+        return _lastStreamingTime;
     }
 
     function getController()
@@ -488,7 +508,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             address token = tokens[i];
             // If an input weight is less than the minimum weight, use that instead.
             uint256 denorm = targetDenorms[i];
-            if (denorm < MIN_WEIGHT) denorm = uint96(MIN_WEIGHT);
+            if (denorm < MIN_WEIGHT) denorm = MIN_WEIGHT;
             if (!records[i].bound) {
                 // If the token is not bound, bind it.
                 _bind(token, minBalances[i], denorm);
@@ -525,8 +545,8 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             ready: false,
             denorm: 0,
             targetDenorm: denorm,
-            targetBlock: badd(block.number, TARGET_BLOCK_DELTA),
-            lastUpdateBlock: block.number,
+            targetTime: badd(block.timestamp, _targetDelta),
+            lastUpdateTime: block.timestamp,
             index: uint8(_tokens.length),
             balance: 0
         });
@@ -562,19 +582,18 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             index: 0,
             denorm: 0,
             targetDenorm: 0,
-            targetBlock: 0,
-            lastUpdateBlock: 0,
+            targetTime: 0,
+            lastUpdateTime: 0,
             balance: 0
         });
 
-        // TODO: Send this to unbound token handler
         _pushUnderlying(token, address(_unbinder), tokenBalance);
         _unbinder.handleUnboundToken(token);
     }
 
     /**
      * @dev Set the target denorm of a token
-     * linearly adjusts by block + TARGET_BLOCK_DELTA
+     * linearly adjusts by time + _targetDelta
      *
      * @param token Token to adjust
      * @param denorm Target denorm to set
@@ -587,8 +606,8 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         require(denorm >= MIN_WEIGHT || denorm == 0, "ERR_MIN_WEIGHT");
         require(denorm <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
         _records[token].targetDenorm = denorm;
-        _records[token].targetBlock = badd(block.number, TARGET_BLOCK_DELTA);
-        _records[token].lastUpdateBlock = block.number;
+        _records[token].targetTime = badd(block.timestamp, _targetDelta);
+        _records[token].lastUpdateTime = block.timestamp;
     }
 
     /**
@@ -602,28 +621,36 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
         Record memory record = _records[token];
-        uint256 targetBlock = record.targetBlock;
+        uint256 targetTime = record.targetTime;
 
-        if (block.number < targetBlock && record.denorm != record.targetDenorm) {
-            uint256 lastUpdateBlock = record.lastUpdateBlock;
-            uint256 blockDelta = bsub(block.number, lastUpdateBlock);
-            uint256 blocksLeft = bsub(lastUpdateBlock, block.number);
+        if (block.timestamp < targetTime && record.denorm != record.targetDenorm) {
+            uint256 lastUpdateTime = record.lastUpdateTime;
+            uint256 timeDelta = bsub(block.timestamp, lastUpdateTime);
+            uint256 timeLeft = bsub(targetTime, lastUpdateTime);
 
             if (record.denorm > record.targetDenorm) {
                 uint256 denormDelta = bsub(record.denorm, record.targetDenorm);
-                uint256 diff = bdiv(bmul(denormDelta, blockDelta), blocksLeft);
+                uint256 diff = bdiv(bmul(denormDelta, timeDelta), timeLeft);
                 _records[token].denorm = bsub(record.denorm, diff);
                 _totalWeight = bsub(_totalWeight, diff);
             } else {
                 uint256 denormDelta = bsub(record.targetDenorm, record.denorm);
-                uint256 diff = bdiv(bmul(denormDelta, blockDelta), blocksLeft);
+                uint256 diff = bdiv(bmul(denormDelta, timeDelta), timeLeft);
                 _records[token].denorm = badd(record.denorm, diff);
                 _totalWeight = badd(_totalWeight, diff);
             }
-        } else if (record.denorm != record.targetDenorm || record.lastUpdateBlock != record.targetBlock) {
-            // Ensure denorm set to target if equal, or past targetBlock
+        } else if (record.denorm != record.targetDenorm || record.lastUpdateTime != record.targetTime) {
+            // Ensure denorm set to target if equal, or past targetTime
+            if (record.denorm > record.targetDenorm) {
+                uint256 diff = bsub(record.denorm, record.targetDenorm);
+                _totalWeight = bsub(_totalWeight, diff);
+            } else {
+                uint256 diff = bsub(record.targetDenorm, record.denorm);
+                _totalWeight = badd(_totalWeight, diff);
+            }
+
             _records[token].denorm = _records[token].targetDenorm;
-            _records[token].lastUpdateBlock = _records[token].targetBlock;
+            _records[token].lastUpdateTime = _records[token].targetTime;
         }
     }
 
@@ -649,13 +676,12 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
                 // the ratio of the increase in balance over the minimum to the minimum
                 // balance.
                 // weight = (1 + ((bal - min_bal) / min_bal)) * min_weight
-                uint256 currBalance = _getBalance(token);
-                uint256 additionalBalance = bsub(balance, currBalance);
-                uint256 balRatio = bdiv(additionalBalance, currBalance);
+                uint256 additionalBalance = bsub(balance, _minBalances[token]);
+                uint256 balRatio = bdiv(additionalBalance, _minBalances[token]);
                 uint256 denorm = badd(MIN_WEIGHT, bmul(MIN_WEIGHT, balRatio));
                 _records[token].denorm = denorm;
-                _records[token].lastUpdateBlock = block.number;
-                _records[token].targetBlock = badd(block.number, TARGET_BLOCK_DELTA);
+                _records[token].lastUpdateTime = block.timestamp;
+                _records[token].targetTime = badd(block.timestamp, _targetDelta);
                 _totalWeight = badd(_totalWeight, _records[token].denorm);
                 // Remove the minimum balance record
                 _minBalances[token] = 0;
@@ -686,7 +712,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         address token
     )
         internal view
-        returns (uint256 balance)
+        returns (uint256)
     {
         if (_records[token].ready) {
             return _records[token].balance;
@@ -731,9 +757,9 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             uint256 tokenAmountIn = bmul(ratio, bal);
             require(tokenAmountIn != 0, "ERR_MATH_APPROX");
             require(tokenAmountIn <= maxAmountsIn[i], "ERR_LIMIT_IN");
+            _pullUnderlying(t, msg.sender, tokenAmountIn);
             _updateToken(t, badd(_records[t].balance, tokenAmountIn));
             emit LogJoin(msg.sender, t, tokenAmountIn);
-            _pullUnderlying(t, msg.sender, tokenAmountIn);
         }
         _mintPoolShare(poolAmountOut);
         _pushPoolShare(msg.sender, poolAmountOut);
@@ -763,9 +789,9 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
                 uint256 tokenAmountOut = bmul(ratio, record.balance);
                 require(tokenAmountOut != 0, "ERR_MATH_APPROX");
                 require(tokenAmountOut >= minAmountsOut[i], "ERR_LIMIT_OUT");
-                _records[t].balance = bsub(_records[t].balance, tokenAmountOut);
-                emit LogExit(msg.sender, t, tokenAmountOut);
                 _pushUnderlying(t, msg.sender, tokenAmountOut);
+                _updateToken(t, bsub(_records[t].balance, tokenAmountOut));
+                emit LogExit(msg.sender, t, tokenAmountOut);
             } else {
                 // Uninitialized tokens cannot exit the pool
                 require(minAmountsOut[i] == 0, "ERR_NOT_READY");

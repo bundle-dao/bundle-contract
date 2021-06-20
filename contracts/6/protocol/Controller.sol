@@ -17,8 +17,9 @@ contract Controller is Initializable, OwnableUpgradeable {
 
     /* ========== Constants ========== */
 
-    uint256 internal constant INIT_DELAY = 201600;
-    uint256 internal constant MIN_DELAY = 28800;
+    uint256 internal constant MAX_DELAY = 14 days;
+    uint256 internal constant INIT_DELAY = 7 days;
+    uint256 internal constant MIN_DELAY = 1 days;
 
     /* ========== Storage ========== */
 
@@ -26,7 +27,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         address unbinder;
         bool    isInitialized;
         bool    isSetup;
-        uint256 lastUpdateBlock;
+        uint256 lastUpdateTime;
     }
 
     IBundleFactory private _factory;
@@ -61,7 +62,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         external
         onlyOwner
     {
-        require(delay >= MIN_DELAY, "ERR_MIN_DELAY");
+        require(delay >= MIN_DELAY && delay <= MAX_DELAY, "ERR_BAD_DELAY");
         _delay = delay;
     }
 
@@ -87,7 +88,7 @@ contract Controller is Initializable, OwnableUpgradeable {
             unbinder: unbinder,
             isInitialized: true,
             isSetup: false,
-            lastUpdateBlock: 0
+            lastUpdateTime: 0
         });
     }
 
@@ -104,6 +105,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         require(_bundles[bundle].isInitialized && !_bundles[bundle].isSetup, "ERR_SETUP");
         IBundle(bundle).setup(tokens, balances, denorms, tokenProvider);
         _bundles[bundle].isSetup = true;
+        _bundles[bundle].lastUpdateTime = block.timestamp;
         _rebalancer.setWhitelist(bundle, true);
     }
 
@@ -182,6 +184,11 @@ contract Controller is Initializable, OwnableUpgradeable {
         IBundle(bundle).setExitFee(exitFee);
     }
 
+    function setTargetDelta(address bundle, uint256 targetDelta) external onlyOwner {
+        require(_bundles[bundle].isSetup, "ERR_BUNDLE_NOT_SETUP");
+        IBundle(bundle).setTargetDelta(targetDelta);
+    }
+
     function collectStreamingFee(address bundle) external onlyOwner {
         require(_bundles[bundle].isSetup, "ERR_BUNDLE_NOT_SETUP");
         IBundle(bundle).collectStreamingFee();
@@ -198,9 +205,9 @@ contract Controller is Initializable, OwnableUpgradeable {
         onlyOwner
     {
         require(_bundles[bundle].isSetup, "ERR_BUNDLE_NOT_SETUP");
-        require(block.number >= _bundles[bundle].lastUpdateBlock.add(_delay), "ERR_DELAY");
+        require(block.timestamp >= _bundles[bundle].lastUpdateTime.add(_delay), "ERR_DELAY");
         IBundle(bundle).reweighTokens(tokens, targetDenorms);
-        _bundles[bundle].lastUpdateBlock = block.number;
+        _bundles[bundle].lastUpdateTime = block.timestamp;
     }
 
     function reindexTokens(
@@ -213,9 +220,9 @@ contract Controller is Initializable, OwnableUpgradeable {
         onlyOwner
     {
         require(_bundles[bundle].isSetup, "ERR_BUNDLE_NOT_SETUP");
-        require(block.number >= _bundles[bundle].lastUpdateBlock.add(_delay), "ERR_DELAY");
+        require(block.timestamp >= _bundles[bundle].lastUpdateTime.add(_delay), "ERR_DELAY");
         IBundle(bundle).reindexTokens(tokens, targetDenorms, minBalances);
-        _bundles[bundle].lastUpdateBlock = block.number;
+        _bundles[bundle].lastUpdateTime = block.timestamp;
     }
 
     /* ========== Getters ========== */
@@ -228,7 +235,7 @@ contract Controller is Initializable, OwnableUpgradeable {
             address unbinder, 
             bool isInitialized, 
             bool isSetup, 
-            uint256 lastUpdateBlock
+            uint256 lastUpdateTime
         )
     {
         Bundle memory metadata = _bundles[bundle];
@@ -236,7 +243,7 @@ contract Controller is Initializable, OwnableUpgradeable {
             metadata.unbinder,
             metadata.isInitialized,
             metadata.isSetup,
-            metadata.lastUpdateBlock
+            metadata.lastUpdateTime
         );
     }
 
