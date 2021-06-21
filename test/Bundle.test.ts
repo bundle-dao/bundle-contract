@@ -107,8 +107,7 @@ describe('Bundle', () => {
         rebalancer = (await upgrades.deployProxy(Rebalancer, [
             ethers.constants.AddressZero,
             controller.address,
-            ethers.constants.AddressZero,
-            await deployer.getAddress(),
+            ethers.constants.AddressZero
         ])) as Rebalancer;
         await rebalancer.deployed();
 

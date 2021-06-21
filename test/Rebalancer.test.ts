@@ -14,8 +14,6 @@ import {
     MockERC20__factory,
     MockWBNB,
     MockWBNB__factory,
-    PancakePair,
-    PancakePair__factory,
     PancakeRouter,
     PancakeRouter__factory,
     PancakeFactory,
@@ -29,7 +27,7 @@ import {
     Rebalancer,
     Rebalancer__factory
 } from '../typechain';
-import { duration } from './helpers/time';
+import { duration, increase } from './helpers/time';
 
 chai.use(solidity);
 const { expect } = chai;
@@ -47,6 +45,7 @@ describe('Rebalancer', () => {
     let bundleAsDeployer: Bundle;
     let bundleAsAlice: Bundle;
     let rebalancerAsAlice: Rebalancer;
+    let routerAsAlice: PancakeRouter;
 
     // Accounts
     let deployer: Signer;
@@ -91,6 +90,7 @@ describe('Rebalancer', () => {
         )) as PancakeRouter__factory;
         router = await PancakeRouter.deploy(factory.address, wbnb.address);
         await router.deployed();
+        routerAsAlice = PancakeRouter__factory.connect(router.address, alice);
 
         const UpgradeableBeacon = (await ethers.getContractFactory(
             'UpgradeableBeacon',
@@ -127,10 +127,8 @@ describe('Rebalancer', () => {
         // Deploy rebalancer
         const Rebalancer = await ethers.getContractFactory('Rebalancer');
         rebalancer = (await upgrades.deployProxy(Rebalancer, [
-            ethers.constants.AddressZero,
-            controller.address,
-            ethers.constants.AddressZero,
-            await deployer.getAddress(),
+            router.address,
+            controller.address
         ])) as Rebalancer;
         await rebalancer.deployed();
         rebalancerAsAlice = Rebalancer__factory.connect(rebalancer.address, alice);
@@ -162,9 +160,9 @@ describe('Rebalancer', () => {
         token2AsAlice = MockERC20__factory.connect(tokens[2].address, alice);
 
         // Mint tokens
-        await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('20000'));
-        await token1AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('10000'));
-        await token2AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('20000'));
+        await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
+        await token1AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('50000'));
+        await token2AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('200000'));
         await token0AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('100000'));
         await token1AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('50000'));
         await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('100000'));
@@ -183,9 +181,8 @@ describe('Rebalancer', () => {
         await token0AsDeployer.approve(router.address, ethers.constants.MaxUint256);
         await token1AsDeployer.approve(router.address, ethers.constants.MaxUint256);
         await token2AsDeployer.approve(router.address, ethers.constants.MaxUint256);
+        await token0AsAlice.approve(rebalancer.address, ethers.constants.MaxUint256);
         await token0AsAlice.approve(router.address, ethers.constants.MaxUint256);
-        await token1AsAlice.approve(router.address, ethers.constants.MaxUint256);
-        await token2AsAlice.approve(router.address, ethers.constants.MaxUint256);
 
         // Setup bundle
         await controllerAsDeployer.setup(
@@ -199,7 +196,7 @@ describe('Rebalancer', () => {
         // Add liquidity for tokens
         await router.addLiquidity(
             token0AsDeployer.address, token2AsDeployer.address,
-            ethers.utils.parseEther('10000'), ethers.utils.parseEther('10000'),
+            ethers.utils.parseEther('50000'), ethers.utils.parseEther('50000'),
             0, 0,
             await deployer.getAddress(),
             '2000000000'
@@ -207,7 +204,7 @@ describe('Rebalancer', () => {
 
         await router.addLiquidity(
             token1AsDeployer.address, token2AsDeployer.address,
-            ethers.utils.parseEther('5000'), ethers.utils.parseEther('10000'),
+            ethers.utils.parseEther('25000'), ethers.utils.parseEther('50000'),
             0, 0,
             await deployer.getAddress(),
             '2000000000'
@@ -222,11 +219,95 @@ describe('Rebalancer', () => {
         await priceOracle.deployed();
 
         controllerAsDeployer.setOracle(priceOracle.address);
+        controllerAsDeployer.setGap(ethers.utils.parseEther('5').div(100));
     });
 
-    context('arbitraging', async () => {
-        it('successfuly arbitrages and distributes profits', async () => {
+    context('oracle', async () => {
+        it('reverts when initial token invalid', async () => {
+            await expect(priceOracle.setReferencePath(token0AsDeployer.address, [token1AsDeployer.address, token2AsDeployer.address])).to.be.revertedWith('ERR_BAD_REFERENCE_PATH');
+        });
 
+        it('reverts when last token not peg', async () => {
+            await expect(priceOracle.setReferencePath(token0AsDeployer.address, [token0AsDeployer.address, token1AsDeployer.address])).to.be.revertedWith('ERR_BAD_REFERENCE_PATH');
+        });
+
+        it('does nothing when not past timeframe', async () => {
+            // Setup oracle
+            await priceOracle.setReferencePath(token0AsDeployer.address, [token0AsDeployer.address, token2AsDeployer.address]);
+            await priceOracle.setReferencePath(token1AsDeployer.address, [token1AsDeployer.address, token2AsDeployer.address]);
+            await priceOracle.updateReference(token0AsDeployer.address);
+            expect(await priceOracle.consultReference(token0AsDeployer.address, ethers.utils.parseEther('1'))).to.be.bignumber.and.eq(0);
+            expect(await priceOracle.consultReference(token1AsDeployer.address, ethers.utils.parseEther('1'))).to.be.bignumber.and.eq(0);
+        })
+    })
+
+    context('arbitraging', async () => {
+        it('reverts when bundle not whitelisted', async () => {
+            await controllerAsDeployer.setWhitelist(bundleAsDeployer.address, false);
+
+            await expect(rebalancerAsAlice.swap(
+                bundleAsAlice.address,
+                token0AsAlice.address,
+                token1AsAlice.address,
+                ethers.utils.parseEther('100'),
+                '2000000000',
+                [token1AsAlice.address, token2AsAlice.address, token0AsAlice.address]
+            )).to.be.revertedWith('ERR_POOL_WHITELIST');
+        });
+
+        it('reverts with invalid end of path', async () => {
+            await expect(rebalancerAsAlice.swap(
+                bundleAsAlice.address,
+                token0AsAlice.address,
+                token1AsAlice.address,
+                ethers.utils.parseEther('100'),
+                '2000000000',
+                [token1AsAlice.address, token2AsAlice.address, token1AsAlice.address]
+            )).to.be.revertedWith('ERR_BAD_PATH');
+        });
+
+        it('reverts with invalid start of path', async () => {
+            await expect(rebalancerAsAlice.swap(
+                bundleAsAlice.address,
+                token0AsAlice.address,
+                token1AsAlice.address,
+                ethers.utils.parseEther('100'),
+                '2000000000',
+                [token0AsAlice.address, token2AsAlice.address, token1AsAlice.address]
+            )).to.be.revertedWith('ERR_BAD_PATH');
+        });
+
+        it('reverts when not profitable', async () => {
+            await expect(rebalancerAsAlice.swap(
+                bundleAsAlice.address,
+                token0AsAlice.address,
+                token1AsAlice.address,
+                ethers.utils.parseEther('100'),
+                '2000000000',
+                [token1AsAlice.address, token2AsAlice.address, token0AsAlice.address]
+            )).to.be.revertedWith('INSUFFICIENT_OUTPUT_AMOUNT');
+        });
+
+        it('reverts when oracle not setup', async () => {
+            await priceOracle.setReferencePath(token0AsDeployer.address, [token0AsDeployer.address, token2AsDeployer.address]);
+            await priceOracle.setReferencePath(token1AsDeployer.address, [token1AsDeployer.address, token2AsDeployer.address]);
+
+            await routerAsAlice.swapExactTokensForTokens(
+                ethers.utils.parseEther('90000'),
+                ethers.utils.parseEther('0'),
+                [token0AsAlice.address, token2AsAlice.address],
+                await alice.getAddress(),
+                '2000000000'
+            );
+
+            await expect(rebalancerAsAlice.swap(
+                bundleAsAlice.address,
+                token0AsAlice.address,
+                token1AsAlice.address,
+                ethers.utils.parseEther('100'),
+                '2000000000',
+                [token1AsAlice.address, token2AsAlice.address, token0AsAlice.address]
+            )).to.be.revertedWith('ERR_REFERENCE_NOT_INITIALIZED');
         });
     });
 });

@@ -27,11 +27,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     /* ========== Storage ========== */
     
     address private _controller;
-    address private _bundleToken;
-    address private _dev;
     uint256 private _premium;
     uint256 private _gap;
-    bool private _lock;
     IPancakeRouter02 private _router;
     IPriceOracle private _oracle;
 
@@ -51,17 +48,14 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
 
     /* ========== Initialization ========== */
     
-    function initialize(address router, address controller, address bundleToken, address dev)
+    function initialize(address router, address controller)
         public
         initializer
     {
         __ReentrancyGuard_init();
         _controller = controller;
-        _bundleToken = bundleToken;
         _router = IPancakeRouter02(router);
         _premium = INIT_PREMIUM;
-        _lock = true;
-        _dev = dev;
         _gap = INIT_ORACLE_GAP;
     }
 
@@ -80,20 +74,6 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _control_
     {
         _poolAuth[pool] = flag;
-    }
-
-    function setLock(bool lock) 
-        external override
-        _control_
-    {
-        _lock = lock;
-    }
-
-    function setDev(address dev)
-        external override
-    {
-        require(msg.sender == _dev, "ERR_NOT_DEV");
-        _dev = dev;
     }
 
     function setOracle(address oracle)
@@ -126,13 +106,6 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         return _premium;
     }
 
-    function getDev()
-        external view override
-        returns (address)
-    {
-        return _dev;
-    }
-
     function getOracle()
         external view override
         returns (address)
@@ -145,13 +118,6 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         returns (uint256)
     {
         return _gap;
-    }
-
-    function isLocked()
-        external view override
-        returns (bool)
-    {
-        return _lock;
     }
 
     function isWhitelisted(address pool)
@@ -184,11 +150,6 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         nonReentrant
         _eoa_
     {
-        // Lock to developer during early access
-        if (_lock) {
-            require(msg.sender == _dev, "ERR_NOT_DEV");
-        }
-
         // Bundle validation
         require(_poolAuth[pool], "ERR_POOL_WHITELIST");
         require(IBundle(pool).isBound(tokenIn), "ERR_IN_NOT_BOUND");
@@ -224,6 +185,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
             uint256 outToPeg = _oracle.consultReference(tokenOut, tokenAmountOut);
             uint256 diff;
 
+            require(inToPeg > 0 && outToPeg > 0, "ERR_REFERENCE_NOT_INITIALIZED");
+
             if (inToPeg > outToPeg) {
                 diff = inToPeg.sub(outToPeg);
             } else {
@@ -231,7 +194,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
             }
 
             // Ensure differences in prices to not exceed set range
-            require(inToPeg.mul(_gap).div(BONE) >= diff, "ERR_BAD_SWAP");
+            require(inToPeg.mul(_gap).div(BONE) >= diff, "ERR_SWAP_OUT_OF_GAP");
         }
 
         // Send funds back to user

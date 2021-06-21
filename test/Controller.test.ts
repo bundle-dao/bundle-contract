@@ -82,9 +82,7 @@ describe('Controller', () => {
         const Rebalancer = await ethers.getContractFactory('Rebalancer');
         rebalancer = (await upgrades.deployProxy(Rebalancer, [
             ethers.constants.AddressZero,
-            controller.address,
-            ethers.constants.AddressZero,
-            await deployer.getAddress(),
+            controller.address
         ])) as Rebalancer;
         await rebalancer.deployed();
 
@@ -118,12 +116,6 @@ describe('Controller', () => {
         it('whitelists a bundle', async () => {
             await controllerAsDeployer.setWhitelist(await deployer.getAddress(), true);
             expect(await rebalancer.isWhitelisted(await deployer.getAddress())).to.eq(true);
-        });
-
-        it('sets the lock', async () => {
-            expect(await rebalancer.isLocked()).to.eq(true);
-            await controllerAsDeployer.setLock(false);
-            expect(await rebalancer.isLocked()).to.eq(false);
         });
 
         it('sets the oracle', async () => {

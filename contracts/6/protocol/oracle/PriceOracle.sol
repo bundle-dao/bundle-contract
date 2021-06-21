@@ -42,6 +42,7 @@ contract PriceOracle is Ownable, IPriceOracle {
         external onlyOwner 
     {
         require(_peg == path[path.length - 1], "ERR_BAD_REFERENCE_PATH");
+        require(token == path[0], "ERR_BAD_REFERENCE_PATH");
         require(path.length >= 2, "ERR_BAD_PATH");
         _referencePaths[token] = path;
 
