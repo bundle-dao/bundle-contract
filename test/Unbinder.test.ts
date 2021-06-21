@@ -41,7 +41,6 @@ describe('Rebalancer', () => {
     let bundleAsDeployer: Bundle;
     let bundleAsAlice: Bundle;
     let unbinderAsAlice: Unbinder;
-    let rebalancerAsAlice: Rebalancer;
 
     // Accounts
     let deployer: Signer;
