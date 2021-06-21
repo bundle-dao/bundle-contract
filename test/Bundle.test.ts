@@ -26,7 +26,6 @@ const { expect } = chai;
 describe('Bundle', () => {
     // Contract as Signer
     let controllerAsDeployer: Controller;
-    let controllerAsAlice: Controller;
     let token0AsDeployer: MockERC20;
     let token1AsDeployer: MockERC20;
     let token2AsDeployer: MockERC20;
@@ -122,7 +121,6 @@ describe('Bundle', () => {
         await controller.setDelay(duration.days(ethers.BigNumber.from('1')));
 
         controllerAsDeployer = Controller__factory.connect(controller.address, deployer);
-        controllerAsAlice = Controller__factory.connect(controller.address, alice);
 
         tokens = new Array();
         for (let i = 0; i < 3; i++) {

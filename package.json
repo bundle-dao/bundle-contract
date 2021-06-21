@@ -5,8 +5,8 @@
     "main": "index.js",
     "scripts": {
         "build": "npm run clean && npm run compile",
-        "clean": "npx hardhat clean",
-        "compile": "npx hardhat compile",
+        "clean": "npx hardhat clean && npx hardhat clean --config hardhat.config.5.ts && npx hardhat clean --config hardhat.config.6.6.ts",
+        "compile": "npx hardhat compile && npx hardhat compile --config hardhat.config.5.ts && npx hardhat compile --config hardhat.config.6.6.ts",
         "test": "npx hardhat test",
         "coverage": "npm run build && npx hardhat coverage --temp artifacts --network coverage",
         "solhint": "./node_modules/.bin/solhint -f table contracts/**/*.sol",
@@ -47,7 +47,7 @@
         "typescript": "^4.2.3"
     },
     "dependencies": {
-        "@bundle-dao/pancakeswap-peripheral": "^1.1.2",
+        "@bundle-dao/pancakeswap-peripheral": "^1.1.8",
         "@ethersproject/bignumber": "^5.0.14",
         "@openzeppelin/contracts": "3.4.0",
         "@openzeppelin/contracts-ethereum-package": "^3.0.0",

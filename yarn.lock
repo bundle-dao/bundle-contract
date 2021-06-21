@@ -551,10 +551,10 @@
     "@babel/helper-validator-identifier" "^7.14.5"
     to-fast-properties "^2.0.0"
 
-"@bundle-dao/pancakeswap-peripheral@^1.1.2":
-  version "1.1.2"
-  resolved "https://registry.yarnpkg.com/@bundle-dao/pancakeswap-peripheral/-/pancakeswap-peripheral-1.1.2.tgz#b55a57b161b192bf0360f778b5a3f156f25bd1d9"
-  integrity sha512-Di8J7q0j6LRKZZb3J0ESbOE47eWKrDJKBoIOjwZ+MaPIK+Mkrt31qRs08ruaUrhW3qO0mem64ayl9HYHZnc5/A==
+"@bundle-dao/pancakeswap-peripheral@^1.1.8":
+  version "1.1.8"
+  resolved "https://registry.yarnpkg.com/@bundle-dao/pancakeswap-peripheral/-/pancakeswap-peripheral-1.1.8.tgz#39d0bc5d85ddf197b335d317847d4bc114031cde"
+  integrity sha512-T2LJTAmjwT3GcT4shd6/Dc9CGNescDUgr3CEn7AuhOJBGty9LZlw2elbxXHxoF9ZktPIL6ZB1fMpKkQKSsRrgw==
   dependencies:
     "@pancakeswap-libs/pancake-swap-core" "^0.1.0"
     "@uniswap/lib" "1.1.2"
