@@ -20,7 +20,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     /* ========== Constants ========== */
 
     uint256 internal constant BONE         = 10**18;
-    uint256 internal constant INIT_PREMIUM = (2 * BONE) / 10**2;
+    uint256 internal constant INIT_PREMIUM = (3 * BONE) / 10**2;
     uint256 internal constant MAX_PREMIUM  = (25 * BONE) / 10**2;
     uint256 internal constant INIT_ORACLE_GAP = (5 * BONE) / 10**2;
 
