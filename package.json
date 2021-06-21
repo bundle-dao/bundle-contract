@@ -12,16 +12,8 @@
         "solhint": "./node_modules/.bin/solhint -f table contracts/**/*.sol",
         "prettier:solidity": "./node_modules/.bin/prettier --write contracts/**/*.sol"
     },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/rhlsthrm/solidity-ts-dev-stack-example.git"
-    },
-    "author": "rhlsthrm",
+    "author": "bundle-dao",
     "license": "MIT",
-    "bugs": {
-        "url": "https://github.com/rhlsthrm/solidity-ts-dev-stack-example/issues"
-    },
-    "homepage": "https://github.com/rhlsthrm/solidity-ts-dev-stack-example#readme",
     "devDependencies": {
         "@nomiclabs/hardhat-ethers": "^2.0.2",
         "@nomiclabs/hardhat-etherscan": "^2.1.2",
