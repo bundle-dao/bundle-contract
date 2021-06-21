@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
+pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
@@ -113,19 +114,22 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
      *  @param token Address of token to distribute back to Bundle
      *  @param amount Amount of token to redistribute
      */
-    function distributeUnboundToken(address token, uint256 amount, uint256 deadline, address[] calldata routeTokens)
+    function distributeUnboundToken(address token, uint256 amount, uint256 deadline, address[][] calldata paths)
         external override
         nonReentrant
         _eoa_
     {
-        require(IERC20Upgradeable(token).balanceOf(address(this)) >= amount, "ERR_BAD_AMOUNT");
-
         if (IERC20Upgradeable(token).allowance(address(this), address(_router)) != type(uint256).max) {
             IERC20Upgradeable(token).approve(address(_router), type(uint256).max);
         }
 
         address[] memory tokens = _bundle.getCurrentTokens();
-        require(routeTokens.length == tokens.length, "ERR_ROUTE_MISMATCH");
+        require(paths.length == tokens.length, "ERR_TOKENS_MISMATCH");
+
+        for (uint256 i = 0; i < paths.length; i++) {
+            require(paths[i][0] == token, "ERR_PATH_START");
+            require(paths[i][paths[i].length - 1] == tokens[i], "ERR_PATH_END");
+        }
 
         uint256[] memory weights = new uint256[](tokens.length);
         uint256 totalWeight = 0;
@@ -140,30 +144,34 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
             totalWeight = totalWeight.add(weights[i]);
         }
 
-        for (uint256 i = 0; i < tokens.length - 1; i++) {
-            address[] memory path = new address[](3);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            uint256[] memory amountsOut = _router.getAmountsOut(balance.mul(weights[i]).div(totalWeight), paths[i]);
 
-            // Enforce reliably secure path set on initialization
-            path[0] = token;
-            path[1] = routeTokens[i];
-            path[2] = tokens[i];
+            _handlePath(
+                paths[i], 
+                balance.mul(weights[i]).div(totalWeight), 
+                amountsOut[amountsOut.length - 1], 
+                deadline
+            );
+        }
+    }
 
-            uint256[] memory expectedOut = _router.getAmountsOut(balance.mul(weights[i]).div(totalWeight), path);
-
-            require(expectedOut[path.length - 1] > 0, "ERR_BAD_SWAP");
+    function _handlePath(address[] calldata path, uint256 amountIn, uint256 amountOut, uint256 deadline) 
+        internal
+    {
+            require(amountOut > 0, "ERR_BAD_SWAP");
             
-            // Min amount out to be 97% of expectation
+            // Min amount out to be 99% of expectation
             // unbinder used infrequently enough s.t. these don't need to be too strict
             _router.swapExactTokensForTokens(
-                balance.mul(weights[i]).div(totalWeight), 
-                expectedOut[path.length - 1].mul(970).div(1000), 
-                path, 
-                address(_bundle), 
+                amountIn, 
+                amountOut.mul(9900).div(10000), 
+                path,
+                address(_bundle),
                 deadline
             );
 
             // Add bToken back to balances
-            _bundle.gulp(tokens[i]);
-        }
+            _bundle.gulp(path[path.length - 1]);
     }
 }

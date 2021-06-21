@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
+pragma experimental ABIEncoderV2;
 
 import "@bundle-dao/pancakeswap-peripheral/contracts/interfaces/IPancakeRouter02.sol";
 import "./IBundle.sol";
@@ -11,7 +12,7 @@ interface IUnbinder {
 
     function handleUnboundToken(address token) external;
 
-    function distributeUnboundToken(address token, uint256 amount, uint256 deadline, address[] calldata routeTokens) external;
+    function distributeUnboundToken(address token, uint256 amount, uint256 deadline, address[][] calldata paths) external;
 
     function setPremium(uint256 premium) external;
 

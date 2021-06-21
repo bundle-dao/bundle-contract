@@ -106,7 +106,7 @@ describe('Bundle', () => {
         const Rebalancer = await ethers.getContractFactory('Rebalancer');
         rebalancer = (await upgrades.deployProxy(Rebalancer, [
             ethers.constants.AddressZero,
-            controller.address
+            controller.address,
         ])) as Rebalancer;
         await rebalancer.deployed();
 
