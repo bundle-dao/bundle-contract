@@ -6,6 +6,8 @@ import { Controller__factory, Controller, BundleFactory__factory } from '../type
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { deployments, getNamedAccounts, network } = hre;
     const { deploy } = deployments;
+    const ORACLE = '';
+    const REBALANCER = '';
 
     if (network.name !== 'testnet') {
         console.log('This deployment script should be run against testnet only');
@@ -30,12 +32,18 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     // Deploy controller with testnet pancake router
     console.log('>> Deploying the proxied controller');
-    const Controller = (await ethers.getContractFactory('Controller')) as Controller__factory;
+    const Controller = (await ethers.getContractFactory(
+        'Controller',
+        (
+            await ethers.getSigners()
+        )[0]
+    )) as Controller__factory;
     const controller = (await upgrades.deployProxy(Controller, [
         (await deployments.get('BundleFactory')).address,
         '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3',
     ])) as Controller;
     await controller.deployed();
+    console.log(`>> Controller: ${controller.address}`);
 
     console.log('>> Setting the controller on factory');
     await bundleFactory.setController(controller.address);
@@ -47,16 +55,6 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         constructorArguments: [
             (await deployments.get('UnbinderBeacon')).address,
             (await deployments.get('BundleBeacon')).address,
-        ],
-    });
-    console.log('✅ Done');
-
-    console.log('>> Verifying Controller');
-    await hre.run('verify:verify', {
-        address: controller,
-        constructorArguments: [
-            (await deployments.get('BundleFactory')).address,
-            '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3',
         ],
     });
     console.log('✅ Done');
