@@ -23,11 +23,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
     /* ========== Modifiers ========== */
 
-    modifier _logs_() {
-        emit LogCall(msg.sig, msg.sender, msg.data);
-        _;
-    }
-
     modifier _lock_() {
         require(!_mutex, "ERR_REENTRY");
         _mutex = true;
@@ -51,8 +46,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     }
 
     modifier _rebalance_() {
-        require(msg.sender == _rebalancer, "ERR_NOT_REBALANCER");
-        require(_rebalancable, "ERR_NOT_REBALANCEABLE");
+        require(msg.sender == _rebalancer && _rebalancable, "ERR_BAD_REBALANCE");
         _;
     }
 
@@ -74,9 +68,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
     // exit fee
     uint256 private _exitFee;
-
-    // Flag preventing multiple setup calls
-    bool private _setup;
 
     // Array of token addresses
     address[] private _tokens;
@@ -140,13 +131,10 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         address tokenProvider
     )
         external override
-        _logs_
-        _lock_
         _control_
     {
-        require(!_setup && _tokens.length == 0, "ERR_BUNDLE_ALREADY_SETUP");
-        require(tokens.length >= MIN_BOUND_TOKENS, "ERR_MIN_TOKENS");
-        require(tokens.length <= MAX_BOUND_TOKENS, "ERR_MAX_TOKENS");
+        require(_tokens.length == 0, "ERR_ALREADY_SETUP");
+        require(tokens.length >= MIN_BOUND_TOKENS && tokens.length <= MAX_BOUND_TOKENS, "ERR_BAD_TOKEN_LENGTH");
         require(balances.length == tokens.length && denorms.length == tokens.length, "ERR_ARR_LEN");
 
         uint256 totalWeight = 0;
@@ -154,8 +142,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             uint256 denorm = denorms[i];
             uint256 balance = balances[i];
 
-            require(denorm >= MIN_WEIGHT, "ERR_MIN_WEIGHT");
-            require(denorm <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
+            require(denorm >= MIN_WEIGHT && denorm <= MAX_WEIGHT, "ERR_BAD_WEIGHT");
             require(balance >= MIN_BALANCE, "ERR_MIN_BALANCE");
 
             address token = tokens[i];
@@ -181,7 +168,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _publicSwap = true;
         _lastStreamingTime = block.timestamp;
         _rebalancable = true;
-        _setup = true;
         emit LogPublicSwapEnabled();
         _mintPoolShare(INIT_POOL_SUPPLY);
         _pushPoolShare(tokenProvider, INIT_POOL_SUPPLY);
@@ -191,48 +177,31 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
     function setSwapFee(uint256 swapFee)
         external override
-        _lock_
         _control_
     { 
-        require(swapFee >= MIN_FEE, "ERR_MIN_FEE");
-        require(swapFee <= MAX_FEE, "ERR_MAX_FEE");
+        require(swapFee >= MIN_FEE && swapFee <= MAX_FEE, "ERR_BAD_FEE");
         _swapFee = swapFee;
         emit LogSwapFeeUpdated(msg.sender, swapFee);
     }
 
     function setRebalancable(bool rebalancable)
         external override
-        _logs_
-        _lock_
         _control_
     {
         _rebalancable = rebalancable;
-    }
-
-    function setPublicSwap(bool public_)
-        external override
-        _logs_
-        _lock_
-        _control_
-    {
-        _publicSwap = public_;
+        emit LogRebalancable(msg.sender, _rebalancable);
     }
 
     function setMinBalance(address token, uint256 minBalance) 
         external override
-        _logs_
-        _lock_
         _control_
     {
-        require(_records[token].bound, "ERR_NOT_BOUND");
-        require(!_records[token].ready, "ERR_READY");
+        require(_records[token].bound && !_records[token].ready, "ERR_BAD_TOKEN");
         _minBalances[token] = minBalance;
     }
 
     function setStreamingFee(uint256 streamingFee) 
         external override
-        _logs_
-        _lock_
         _control_
     {
         require(streamingFee < MAX_STREAMING_FEE, "ERR_MAX_STREAMING_FEE");
@@ -241,8 +210,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
     function setExitFee(uint256 exitFee) 
         external override
-        _logs_
-        _lock_
         _control_
     {
         require(exitFee < MAX_EXIT_FEE, "ERR_MAX_STREAMING_FEE");
@@ -251,8 +218,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
     function setTargetDelta(uint256 targetDelta)
         external override
-        _logs_
-        _lock_
         _control_
     {
         require(targetDelta >= MIN_TARGET_DELTA && targetDelta <= MAX_TARGET_DELTA, "ERR_TARGET_DELTA");
@@ -261,11 +226,10 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
     function collectStreamingFee()
         external override
-        _logs_
         _lock_
         _control_
     {
-        require(_setup, "ERR_SETUP");
+        require(_tokens.length > 0, "ERR_SETUP");
         require(_lastStreamingTime < block.timestamp, "ERR_COLLECTION_TO_SOON");
 
         uint256 timeDelta = bsub(block.timestamp, _lastStreamingTime);
@@ -286,6 +250,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         }
 
         _lastStreamingTime = block.timestamp;
+        emit LogStreamingFee(msg.sender);
     }
 
     /* ==========  Getters  ========== */
@@ -378,14 +343,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         return _exitFee;
     }
 
-    function getLastStreamingTime()
-        external view override
-        _viewlock_
-        returns (uint256)
-    {
-        return _lastStreamingTime;
-    }
-
     function getController()
         external view override
         _viewlock_
@@ -423,8 +380,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _viewlock_
         returns (uint256 spotPrice)
     {
-        require(_records[tokenIn].bound, "ERR_NOT_BOUND");
-        require(_records[tokenOut].bound, "ERR_NOT_BOUND");
+        require(_records[tokenIn].bound && _records[tokenOut].bound, "ERR_NOT_BOUND");
         Record storage inRecord = _records[tokenIn];
         Record storage outRecord = _records[tokenOut];
         return calcSpotPrice(inRecord.balance, inRecord.denorm, outRecord.balance, outRecord.denorm, _swapFee);
@@ -435,8 +391,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _viewlock_
         returns (uint256 spotPrice)
     {
-        require(_records[tokenIn].bound, "ERR_NOT_BOUND");
-        require(_records[tokenOut].bound, "ERR_NOT_BOUND");
+        require(_records[tokenIn].bound && _records[tokenOut].bound, "ERR_NOT_BOUND");
         Record storage inRecord = _records[tokenIn];
         Record storage outRecord = _records[tokenOut];
         return calcSpotPrice(inRecord.balance, inRecord.denorm, outRecord.balance, outRecord.denorm, 0);
@@ -533,11 +488,9 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
      */
     function _bind(address token, uint256 minBalance, uint256 denorm)
         internal
-        _logs_
     {
         require(!_records[token].bound, "ERR_IS_BOUND");
-        require(denorm >= MIN_WEIGHT, "ERR_MIN_WEIGHT");
-        require(denorm <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
+        require(denorm >= MIN_WEIGHT && denorm <= MAX_WEIGHT, "ERR_BAD_WEIGHT");
         require(minBalance >= MIN_BALANCE, "ERR_MIN_BALANCE");
 
         _records[token] = Record({
@@ -553,6 +506,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
         _tokens.push(token);
         _minBalances[token] = minBalance;
+        emit LogTokenBound(token);
     }
 
     /**
@@ -562,7 +516,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
      */
     function _unbind(address token)
         internal
-        _logs_
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
 
@@ -589,6 +542,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
         _pushUnderlying(token, address(_unbinder), tokenBalance);
         _unbinder.handleUnboundToken(token);
+        emit LogTokenUnbound(token);
     }
 
     /**
@@ -600,7 +554,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
      */
     function _setTargetDenorm(address token, uint256 denorm) 
         internal
-        _logs_
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
         require(denorm >= MIN_WEIGHT || denorm == 0, "ERR_MIN_WEIGHT");
@@ -617,39 +570,26 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
      */
     function _updateDenorm(address token)
         internal
-        _logs_
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
         Record memory record = _records[token];
         uint256 targetTime = record.targetTime;
 
         if (block.timestamp < targetTime && record.denorm != record.targetDenorm) {
-            uint256 lastUpdateTime = record.lastUpdateTime;
-            uint256 timeDelta = bsub(block.timestamp, lastUpdateTime);
-            uint256 timeLeft = bsub(targetTime, lastUpdateTime);
-
-            if (record.denorm > record.targetDenorm) {
-                uint256 denormDelta = bsub(record.denorm, record.targetDenorm);
-                uint256 diff = bdiv(bmul(denormDelta, timeDelta), timeLeft);
-                _records[token].denorm = bsub(record.denorm, diff);
-                _totalWeight = bsub(_totalWeight, diff);
-            } else {
-                uint256 denormDelta = bsub(record.targetDenorm, record.denorm);
-                uint256 diff = bdiv(bmul(denormDelta, timeDelta), timeLeft);
-                _records[token].denorm = badd(record.denorm, diff);
-                _totalWeight = badd(_totalWeight, diff);
-            }
+            _totalWeight = bsub(_totalWeight, record.denorm);
+            _records[token].denorm = calcDenorm(
+                record.lastUpdateTime, 
+                block.timestamp, 
+                targetTime, 
+                record.denorm, 
+                record.targetDenorm
+            );
+            _totalWeight = badd(_totalWeight, _records[token].denorm);
         } else if (record.denorm != record.targetDenorm || record.lastUpdateTime != record.targetTime) {
             // Ensure denorm set to target if equal, or past targetTime
-            if (record.denorm > record.targetDenorm) {
-                uint256 diff = bsub(record.denorm, record.targetDenorm);
-                _totalWeight = bsub(_totalWeight, diff);
-            } else {
-                uint256 diff = bsub(record.targetDenorm, record.denorm);
-                _totalWeight = badd(_totalWeight, diff);
-            }
-
+            _totalWeight = bsub(_totalWeight, record.denorm);
             _records[token].denorm = _records[token].targetDenorm;
+            _totalWeight = badd(_totalWeight, _records[token].denorm);
             _records[token].lastUpdateTime = _records[token].targetTime;
         }
     }
@@ -724,7 +664,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     // Absorb any tokens that have been sent to this contract into the pool
     function gulp(address token)
         external override
-        _logs_
         _lock_
     {
         Record storage record = _records[token];
@@ -742,7 +681,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     function joinPool(uint256 poolAmountOut, uint[] calldata maxAmountsIn)
         external override
         _public_
-        _logs_
         _lock_
     {
         require(maxAmountsIn.length == _tokens.length, "ERR_ARR_LEN");
@@ -768,7 +706,6 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     function exitPool(uint256 poolAmountIn, uint[] calldata minAmountsOut)
         external override
         _public_
-        _logs_
         _lock_
     {
         uint256 poolTotal = totalSupply();
@@ -809,15 +746,13 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         uint256 maxPrice
     )
         external override
-        _logs_
         _lock_
         _public_
         _rebalance_
         returns (uint256 tokenAmountOut, uint256 spotPriceAfter)
     {
-        require(_records[tokenIn].bound, "ERR_NOT_BOUND");
-        require(_records[tokenOut].bound, "ERR_NOT_BOUND");
-        require(_records[tokenOut].bound, "ERR_NOT_READY");
+        require(_records[tokenIn].bound, "ERR_TOKEN_IN");
+        require(_records[tokenOut].bound && _records[tokenOut].ready, "ERR_TOKEN_OUT");
 
         Record memory inRecord = _records[tokenIn];
         uint256 inRecordBalance = _getBalance(tokenIn);
@@ -875,15 +810,13 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         uint256 maxPrice
     )
         external override
-        _logs_
         _lock_
         _public_
         _rebalance_
         returns (uint256 tokenAmountIn, uint256 spotPriceAfter)
     {
-        require(_records[tokenIn].bound, "ERR_NOT_BOUND");
-        require(_records[tokenOut].bound, "ERR_NOT_BOUND");
-        require(_records[tokenOut].bound, "ERR_NOT_READY");
+        require(_records[tokenIn].bound, "ERR_TOKEN_IN");
+        require(_records[tokenOut].bound && _records[tokenOut].ready, "ERR_TOKEN_OUT");
 
         Record memory inRecord = _records[tokenIn];
         uint256 inRecordBalance = _getBalance(tokenIn);

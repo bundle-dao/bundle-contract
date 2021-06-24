@@ -14,7 +14,7 @@ contract BConst {
     uint256 internal constant BONE               = 10**18;
 
     uint256 internal constant MIN_BOUND_TOKENS   = 2;
-    uint256 internal constant MAX_BOUND_TOKENS   = 14;
+    uint256 internal constant MAX_BOUND_TOKENS   = 15;
 
     uint256 internal constant MIN_FEE            = BONE / 10**6;
     uint256 internal constant INIT_FEE           = (2 * BONE) / 10**2;

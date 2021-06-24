@@ -54,6 +54,23 @@ interface IBundle {
         bytes           data
     ) anonymous;
 
+    event LogRebalancable(
+        address indexed caller,
+        bool            rebalancable
+    );
+
+    event LogStreamingFee(
+        address indexed caller
+    );
+
+    event LogTokenBound(
+        address indexed token
+    );
+
+    event LogTokenUnbound(
+        address indexed token
+    );
+
     /* ========== Initialization ========== */
 
     function initialize(
@@ -74,8 +91,6 @@ interface IBundle {
     function setSwapFee(uint256 swapFee) external;
 
     function setRebalancable(bool rebalancable) external;
-
-    function setPublicSwap(bool public_) external;
 
     function setMinBalance(address token, uint256 minBalance) external;
 
@@ -108,8 +123,6 @@ interface IBundle {
     function getStreamingFee() external view returns (uint256);
 
     function getExitFee() external view returns (uint256);
-
-    function getLastStreamingTime() external view returns (uint256);
 
     function getController() external view returns (address);
 

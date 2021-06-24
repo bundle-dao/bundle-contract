@@ -31,6 +31,7 @@
         "ethereum-waffle": "^3.3.0",
         "ethers": "^5.1.4",
         "hardhat": "^2.3.0",
+        "hardhat-contract-sizer": "^2.0.3",
         "prettier": "2.3.0",
         "solidity-coverage": "^0.7.16",
         "ts-generator": "^0.1.1",

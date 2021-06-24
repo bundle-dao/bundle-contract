@@ -266,4 +266,28 @@ contract BMath is BConst, BNum {
         poolAmountIn = bdiv(poolAmountInAfterExitFee, bsub(BONE, exitFee));
         return poolAmountIn;
     }
+
+    // Computes the expected denorm for current timestamp
+    function calcDenorm(
+        uint256 lastUpdateTime,
+        uint256 currTime,
+        uint256 targetTime,
+        uint256 denorm,
+        uint256 targetDenorm
+    )
+        internal pure
+        returns (uint256 currDenorm)
+    {
+        uint256 timeDelta = bsub(currTime, lastUpdateTime);
+        uint256 timeLeft = bsub(targetTime, lastUpdateTime);
+        if (denorm > targetDenorm) {
+            uint256 denormDelta = bsub(denorm, targetDenorm);
+            uint256 diff = bdiv(bmul(denormDelta, timeDelta), timeLeft);
+            currDenorm = bmax(bsub(denorm, diff), targetDenorm);
+        } else {
+            uint256 denormDelta = bsub(targetDenorm, denorm);
+            uint256 diff = bdiv(bmul(denormDelta, timeDelta), timeLeft);
+            currDenorm = bmin(badd(denorm, diff), targetDenorm);
+        }
+    }
 }

@@ -9,6 +9,7 @@ import '@nomiclabs/hardhat-waffle';
 import 'hardhat-deploy';
 import 'solidity-coverage';
 import '@nomiclabs/hardhat-etherscan';
+import 'hardhat-contract-sizer';
 
 const config: HardhatUserConfig = {
     defaultNetwork: 'hardhat',
@@ -86,6 +87,11 @@ const config: HardhatUserConfig = {
     },
     etherscan: {
         apiKey: process.env.BSCSCAN_API_KEY!,
+    },
+    contractSizer: {
+        alphaSort: true,
+        runOnCompile: true,
+        disambiguatePaths: false,
     },
 };
 

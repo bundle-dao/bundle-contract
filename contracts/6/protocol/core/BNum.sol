@@ -157,4 +157,17 @@ contract BNum is BConst {
         return sum;
     }
 
+    function bmin(uint256 a, uint256 b)
+        internal pure
+        returns (uint256)
+    {
+        return a < b ? a : b;
+    }
+
+    function bmax(uint256 a, uint256 b) 
+        internal pure 
+        returns (uint256)
+    {
+        return a >= b ? a : b;
+    }
 }

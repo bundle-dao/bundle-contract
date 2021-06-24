@@ -186,14 +186,10 @@ describe('Controller', () => {
             await controllerAsDeployer.setRebalancable(newBundle.address, true);
             expect(await newBundle.getRebalancable()).to.eq(true);
 
-            // Sets public swap
-            await controllerAsDeployer.setPublicSwap(newBundle.address, true);
-            expect(await newBundle.isPublicSwap()).to.eq(true);
-
             // Sets min balance for token
             await expect(
                 controllerAsDeployer.setMinBalance(newBundle.address, token0AsDeployer.address, 0)
-            ).to.be.revertedWith('ERR_READY');
+            ).to.be.revertedWith('ERR_BAD_TOKEN');
 
             // Sets streaming fee
             await controllerAsDeployer.setStreamingFee(newBundle.address, ethers.utils.parseEther('1').div(100));
@@ -244,9 +240,6 @@ describe('Controller', () => {
 
             // Fails to set swap fee as non-owner
             await expect(controllerAsAlice.setRebalancable(newBundle.address, true)).to.be.reverted;
-
-            // Fails to set swap fee as non-owner
-            await expect(controllerAsAlice.setPublicSwap(newBundle.address, true)).to.be.reverted;
 
             // Fails to set swap fee as non-owner
             await expect(controllerAsAlice.setMinBalance(newBundle.address, token0AsDeployer.address, 0)).to.be

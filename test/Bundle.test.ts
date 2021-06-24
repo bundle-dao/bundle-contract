@@ -780,10 +780,6 @@ describe('Bundle', () => {
             await expect(bundleAsAlice.setRebalancable(false)).to.be.revertedWith('ERR_NOT_CONTROLLER');
         });
 
-        it('reverts when user sets public swap', async () => {
-            await expect(bundleAsAlice.setPublicSwap(false)).to.be.revertedWith('ERR_NOT_CONTROLLER');
-        });
-
         it('reverts when user sets min balance', async () => {
             await expect(bundleAsAlice.setMinBalance(token0AsAlice.address, 0)).to.be.revertedWith(
                 'ERR_NOT_CONTROLLER'
@@ -859,7 +855,7 @@ describe('Bundle', () => {
                     ethers.utils.parseEther('1'),
                     ethers.utils.parseEther('1')
                 )
-            ).to.be.revertedWith('ERR_NOT_REBALANCER');
+            ).to.be.revertedWith('ERR_BAD_REBALANCE');
 
             await expect(
                 bundleAsAlice.swapExactAmountOut(
@@ -869,7 +865,7 @@ describe('Bundle', () => {
                     ethers.utils.parseEther('1'),
                     ethers.utils.parseEther('1')
                 )
-            ).to.be.revertedWith('ERR_NOT_REBALANCER');
+            ).to.be.revertedWith('ERR_BAD_REBALANCE');
         });
     });
 });

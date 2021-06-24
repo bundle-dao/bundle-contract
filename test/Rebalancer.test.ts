@@ -451,17 +451,17 @@ describe('Rebalancer', () => {
             );
         });
 
-        it('reverts when non-controller tries to whitelist', async () => {
+        it('reverts when non-controller tries to set gap', async () => {
             await expect(rebalancerAsAlice.setGap(0)).to.be.revertedWith('ERR_NOT_CONTROLLER');
         });
 
-        it('reverts when non-controller tries to whitelist', async () => {
+        it('reverts when non-controller tries to set oracle', async () => {
             await expect(rebalancerAsAlice.setOracle(bundleAsDeployer.address)).to.be.revertedWith(
                 'ERR_NOT_CONTROLLER'
             );
         });
 
-        it('reverts when non-controller tries to whitelist', async () => {
+        it('reverts when non-controller tries to set premium', async () => {
             await expect(rebalancerAsAlice.setPremium(0)).to.be.revertedWith('ERR_NOT_CONTROLLER');
         });
     });

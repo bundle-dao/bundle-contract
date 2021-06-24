@@ -110,7 +110,6 @@ describe('Rebalancer', () => {
         const Rebalancer = await ethers.getContractFactory('Rebalancer');
         rebalancer = (await upgrades.deployProxy(Rebalancer, [router.address, controller.address])) as Rebalancer;
         await rebalancer.deployed();
-        rebalancerAsAlice = Rebalancer__factory.connect(rebalancer.address, alice);
 
         // Set unbinder and controller to deployer for testing
         await bundleFactory.setController(controller.address);

@@ -153,11 +153,6 @@ contract Controller is Initializable, OwnableUpgradeable {
         IBundle(bundle).setRebalancable(flag);
     }
 
-    function setPublicSwap(address bundle, bool flag) external onlyOwner {
-        require(_bundles[bundle].isSetup, "ERR_BUNDLE_NOT_SETUP");
-        IBundle(bundle).setPublicSwap(flag);
-    }
-
     function setMinBalance(
         address bundle, 
         address token,
