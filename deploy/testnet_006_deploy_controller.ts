@@ -6,8 +6,6 @@ import { Controller__factory, Controller, BundleFactory__factory } from '../type
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { deployments, getNamedAccounts, network } = hre;
     const { deploy } = deployments;
-    const ORACLE = '';
-    const REBALANCER = '';
 
     if (network.name !== 'testnet') {
         console.log('This deployment script should be run against testnet only');

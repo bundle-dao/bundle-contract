@@ -5,7 +5,7 @@ import { Controller, Controller__factory, Rebalancer, Rebalancer__factory } from
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { deployments, network } = hre;
-    const CONTROLLER = '';
+    const CONTROLLER = '0x078DcaBbDFEecC9a8f2166dbD3a280E295235abB';
     const ROUTER = '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3';
 
     if (network.name !== 'testnet') {

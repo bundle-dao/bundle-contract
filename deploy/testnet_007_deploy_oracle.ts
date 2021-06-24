@@ -4,8 +4,8 @@ import { DeployFunction } from 'hardhat-deploy/types';
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { deployments, getNamedAccounts, network } = hre;
     const { deploy } = deployments;
-    const FACTORY = '';
-    const PEG = '';
+    const FACTORY = '0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc';
+    const PEG = '0xe25075950309995A6D18d7Dfd5B34EF02028F059';
 
     if (network.name !== 'testnet') {
         console.log('This deployment script should be run against testnet only');
@@ -16,9 +16,9 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     // Deploy Bundle Factory
     console.log('>> Deploying the Oracle');
-    await deploy('PriceORacle', {
+    await deploy('PriceOracle', {
         from: deployer,
-        args: [(await deployments.get('UnbinderBeacon')).address, (await deployments.get('BundleBeacon')).address],
+        args: [FACTORY, PEG],
         log: true,
         deterministicDeployment: false,
     });
