@@ -28,9 +28,9 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log(`>> Token B: ${tokenB.address}`);
 
     // Deploy Token C
-    const tokenC = (await upgrades.deployProxy(MockERC20, [`TOKEN B`, `TKNB`])) as MockERC20;
+    const tokenC = (await upgrades.deployProxy(MockERC20, [`TOKEN C`, `TKNC`])) as MockERC20;
     await tokenC.deployed();
-    console.log(`>> Token C: ${tokenB.address}`);
+    console.log(`>> Token C: ${tokenC.address}`);
 
     // Deploy Peg
     const peg = (await upgrades.deployProxy(MockERC20, [`PEG`, `PEG`])) as MockERC20;
