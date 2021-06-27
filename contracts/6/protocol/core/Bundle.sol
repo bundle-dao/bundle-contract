@@ -472,7 +472,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             }
         }
 
-        // Ensure the number of tokens at equilibrium form this 
+        // Ensure the number of tokens at equilibrium from this 
         // operation is lte max bound tokens
         require(_tokens.length - unbindCounter <= MAX_BOUND_TOKENS, "ERR_MAX_BOUND_TOKENS");
     }
@@ -572,25 +572,24 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         internal
     {
         require(_records[token].bound, "ERR_NOT_BOUND");
-        Record memory record = _records[token];
-        uint256 targetTime = record.targetTime;
+        Record storage record = _records[token];
 
-        if (block.timestamp < targetTime && record.denorm != record.targetDenorm) {
+        if (block.timestamp < record.targetTime && record.denorm != record.targetDenorm) {
             _totalWeight = bsub(_totalWeight, record.denorm);
-            _records[token].denorm = calcDenorm(
+            record.denorm = calcDenorm(
                 record.lastUpdateTime, 
                 block.timestamp, 
-                targetTime, 
+                record.targetTime, 
                 record.denorm, 
                 record.targetDenorm
             );
-            _totalWeight = badd(_totalWeight, _records[token].denorm);
+            _totalWeight = badd(_totalWeight, record.denorm);
         } else if (record.denorm != record.targetDenorm || record.lastUpdateTime != record.targetTime) {
             // Ensure denorm set to target if equal, or past targetTime
             _totalWeight = bsub(_totalWeight, record.denorm);
-            _records[token].denorm = _records[token].targetDenorm;
-            _totalWeight = badd(_totalWeight, _records[token].denorm);
-            _records[token].lastUpdateTime = _records[token].targetTime;
+            record.denorm = record.targetDenorm;
+            _totalWeight = badd(_totalWeight, record.denorm);
+            record.lastUpdateTime = record.targetTime;
         }
     }
 
@@ -720,14 +719,14 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
         for (uint256 i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
-            Record memory record = _records[t];
+            Record storage record = _records[t];
 
             if (record.ready) {
                 uint256 tokenAmountOut = bmul(ratio, record.balance);
                 require(tokenAmountOut != 0, "ERR_MATH_APPROX");
                 require(tokenAmountOut >= minAmountsOut[i], "ERR_LIMIT_OUT");
                 _pushUnderlying(t, msg.sender, tokenAmountOut);
-                _updateToken(t, bsub(_records[t].balance, tokenAmountOut));
+                _updateToken(t, bsub(record.balance, tokenAmountOut));
                 emit LogExit(msg.sender, t, tokenAmountOut);
             } else {
                 // Uninitialized tokens cannot exit the pool
@@ -754,9 +753,9 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         require(_records[tokenIn].bound, "ERR_TOKEN_IN");
         require(_records[tokenOut].bound && _records[tokenOut].ready, "ERR_TOKEN_OUT");
 
-        Record memory inRecord = _records[tokenIn];
+        Record storage inRecord = _records[tokenIn];
         uint256 inRecordBalance = _getBalance(tokenIn);
-        Record memory outRecord = _records[tokenOut];
+        Record storage outRecord = _records[tokenOut];
 
         require(tokenAmountIn <= bmul(inRecord.balance, MAX_IN_RATIO), "ERR_MAX_IN_RATIO");
 
@@ -784,7 +783,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
         // Update tokens
         _updateToken(tokenIn, badd(inRecord.balance, tokenAmountIn));
-        _updateToken(tokenIn, bsub(inRecord.balance, tokenAmountIn));
+        _updateToken(tokenOut, bsub(outRecord.balance, tokenAmountOut));
 
         spotPriceAfter = calcSpotPrice(
                                 inRecordBalance,
@@ -818,9 +817,9 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         require(_records[tokenIn].bound, "ERR_TOKEN_IN");
         require(_records[tokenOut].bound && _records[tokenOut].ready, "ERR_TOKEN_OUT");
 
-        Record memory inRecord = _records[tokenIn];
+        Record storage inRecord = _records[tokenIn];
         uint256 inRecordBalance = _getBalance(tokenIn);
-        Record memory outRecord = _records[tokenOut];
+        Record storage outRecord = _records[tokenOut];
 
         require(tokenAmountOut <= bmul(outRecord.balance, MAX_OUT_RATIO), "ERR_MAX_OUT_RATIO");
 
@@ -847,11 +846,8 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
 
         // Update tokens
-        _updateToken(tokenIn, badd(inRecord.balance, tokenAmountOut));
-        _updateToken(tokenIn, bsub(inRecord.balance, tokenAmountOut));
-
-        inRecord.balance = badd(inRecord.balance, tokenAmountIn);
-        outRecord.balance = bsub(outRecord.balance, tokenAmountOut);
+        _updateToken(tokenIn, badd(inRecord.balance, tokenAmountIn));
+        _updateToken(tokenOut, bsub(outRecord.balance, tokenAmountOut));
 
         spotPriceAfter = calcSpotPrice(
                                 inRecordBalance,

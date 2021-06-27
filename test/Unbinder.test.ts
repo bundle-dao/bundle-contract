@@ -30,7 +30,7 @@ import { duration } from './helpers/time';
 chai.use(solidity);
 const { expect } = chai;
 
-describe('Rebalancer', () => {
+describe('Unbinder', () => {
     // Contract as Signer
     let controllerAsDeployer: Controller;
     let controllerAsAlice: Controller;
