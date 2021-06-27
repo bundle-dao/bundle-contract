@@ -574,7 +574,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         require(_records[token].bound, "ERR_NOT_BOUND");
         Record storage record = _records[token];
 
-        if (block.timestamp < record.targetTime && record.denorm != record.targetDenorm) {
+        if (record.denorm != record.targetDenorm) {
             _totalWeight = bsub(_totalWeight, record.denorm);
             record.denorm = calcDenorm(
                 record.lastUpdateTime, 
@@ -584,12 +584,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
                 record.targetDenorm
             );
             _totalWeight = badd(_totalWeight, record.denorm);
-        } else if (record.denorm != record.targetDenorm || record.lastUpdateTime != record.targetTime) {
-            // Ensure denorm set to target if equal, or past targetTime
-            _totalWeight = bsub(_totalWeight, record.denorm);
-            record.denorm = record.targetDenorm;
-            _totalWeight = badd(_totalWeight, record.denorm);
-            record.lastUpdateTime = record.targetTime;
+            record.lastUpdateTime = bmin(block.timestamp, record.targetTime);
         }
     }
 
@@ -605,11 +600,12 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     )
         internal
     {
-        if (!_records[token].ready) {
+        Record storage record = _records[token];
+        if (!record.ready) {
             // Check if the minimum balance has been reached
             if (balance >= _minBalances[token]) {
                 // Mark the token as ready
-                _records[token].ready = true;
+                record.ready = true;
                 emit LogTokenReady(token);
                 // Set the initial denorm value to the minimum weight times one plus
                 // the ratio of the increase in balance over the minimum to the minimum
@@ -618,25 +614,25 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
                 uint256 additionalBalance = bsub(balance, _minBalances[token]);
                 uint256 balRatio = bdiv(additionalBalance, _minBalances[token]);
                 uint256 denorm = badd(MIN_WEIGHT, bmul(MIN_WEIGHT, balRatio));
-                _records[token].denorm = denorm;
-                _records[token].lastUpdateTime = block.timestamp;
-                _records[token].targetTime = badd(block.timestamp, _targetDelta);
-                _totalWeight = badd(_totalWeight, _records[token].denorm);
+                record.denorm = denorm;
+                record.lastUpdateTime = block.timestamp;
+                record.targetTime = badd(block.timestamp, _targetDelta);
+                _totalWeight = badd(_totalWeight, record.denorm);
                 // Remove the minimum balance record
                 _minBalances[token] = 0;
             } else {
                 uint256 currBalance = _getBalance(token);
                 uint256 realToMinRatio = bdiv(bsub(currBalance, balance), currBalance);
                 uint256 weightPremium = bmul(MIN_WEIGHT / 10, realToMinRatio);
-                _records[token].denorm = badd(MIN_WEIGHT, weightPremium);
+                record.denorm = badd(MIN_WEIGHT, weightPremium);
             }
-            _records[token].balance = balance;
+            record.balance = balance;
         } else {
             // Update denorm if token is ready
             _updateDenorm(token);
-            _records[token].balance = balance;
+            record.balance = balance;
             // Always check if token needs to be unbound
-            if (_records[token].denorm < MIN_WEIGHT) {
+            if (record.denorm < MIN_WEIGHT) {
                 _unbind(token);
             }
         }

@@ -276,18 +276,22 @@ contract BMath is BConst, BNum {
         uint256 targetDenorm
     )
         internal pure
-        returns (uint256 currDenorm)
+        returns (uint256)
     {
+        if (targetTime <= currTime) {
+            return targetDenorm;
+        }
+
         uint256 timeDelta = bsub(currTime, lastUpdateTime);
         uint256 timeLeft = bsub(targetTime, lastUpdateTime);
         if (denorm > targetDenorm) {
             uint256 denormDelta = bsub(denorm, targetDenorm);
             uint256 diff = bdiv(bmul(denormDelta, timeDelta), timeLeft);
-            currDenorm = bmax(bsub(denorm, diff), targetDenorm);
+            return bmax(bsub(denorm, diff), targetDenorm);
         } else {
             uint256 denormDelta = bsub(targetDenorm, denorm);
             uint256 diff = bdiv(bmul(denormDelta, timeDelta), timeLeft);
-            currDenorm = bmin(badd(denorm, diff), targetDenorm);
+            return bmin(badd(denorm, diff), targetDenorm);
         }
     }
 }
