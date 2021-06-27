@@ -782,7 +782,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _updateToken(tokenOut, bsub(outRecord.balance, tokenAmountOut));
 
         spotPriceAfter = calcSpotPrice(
-                                inRecordBalance,
+                                _getBalance(tokenIn),
                                 inRecord.denorm,
                                 outRecord.balance,
                                 outRecord.denorm,
@@ -846,7 +846,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _updateToken(tokenOut, bsub(outRecord.balance, tokenAmountOut));
 
         spotPriceAfter = calcSpotPrice(
-                                inRecordBalance,
+                                _getBalance(tokenIn),
                                 inRecord.denorm,
                                 outRecord.balance,
                                 outRecord.denorm,

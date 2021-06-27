@@ -7,7 +7,7 @@
       "hash": "0xe614452e184a35ee969544a86583d37be2c746fe8800eeea6572a4cd6277341c",
       "type": 0,
       "accessList": null,
-      "blockHash": "0xc80c84573d3172195103536d2977733d9cde9b7d53d46a44fe04e7fa00c4113d",
+      "blockHash": "0x79055a534952758a0af734b1b2ead123fd00596603d0d56e42bde3940646b480",
       "blockNumber": 7,
       "transactionIndex": 0,
       "confirmations": 1,
@@ -5745,7 +5745,7 @@
           {
             "contract": "Rebalancer",
             "label": "_oracle",
-            "type": "t_contract(IPriceOracle)13131",
+            "type": "t_contract(IPriceOracle)13135",
             "src": "contracts/6/protocol/Rebalancer.sol:33"
           },
           {
@@ -5765,7 +5765,7 @@
           "t_contract(IPancakeRouter02)395": {
             "label": "contract IPancakeRouter02"
           },
-          "t_contract(IPriceOracle)13131": {
+          "t_contract(IPriceOracle)13135": {
             "label": "contract IPriceOracle"
           },
           "t_mapping(t_address,t_bool)": {
@@ -5818,13 +5818,13 @@
           {
             "contract": "Controller",
             "label": "_factory",
-            "type": "t_contract(IBundleFactory)12946",
+            "type": "t_contract(IBundleFactory)12950",
             "src": "contracts/6/protocol/Controller.sol:33"
           },
           {
             "contract": "Controller",
             "label": "_rebalancer",
-            "type": "t_contract(IRebalancer)13199",
+            "type": "t_contract(IRebalancer)13203",
             "src": "contracts/6/protocol/Controller.sol:34"
           },
           {
@@ -5847,10 +5847,10 @@
           }
         ],
         "types": {
-          "t_contract(IBundleFactory)12946": {
+          "t_contract(IBundleFactory)12950": {
             "label": "contract IBundleFactory"
           },
-          "t_contract(IRebalancer)13199": {
+          "t_contract(IRebalancer)13203": {
             "label": "contract IRebalancer"
           },
           "t_address": {
