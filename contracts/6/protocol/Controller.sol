@@ -37,6 +37,7 @@ contract Controller is Initializable, OwnableUpgradeable {
     uint256 private _delay;
 
     mapping(address => Bundle) private _bundles;
+    address[] private _swapWhitelist;
 
     /* ========== Initialization ========== */
 
@@ -56,6 +57,13 @@ contract Controller is Initializable, OwnableUpgradeable {
     {
         require(address(_rebalancer) == address(0), "ERR_REBALANCER_SET");
         _rebalancer = IRebalancer(rebalancer);
+    }
+
+    function setDefaultWhitelist(address[] calldata whitelist)
+        external
+        onlyOwner
+    {
+        _swapWhitelist = whitelist;
     }
 
     function setDelay(uint256 delay)
@@ -82,7 +90,7 @@ contract Controller is Initializable, OwnableUpgradeable {
 
         // Initialize contracts
         IBundle(bundle).initialize(address(this), address(_rebalancer), unbinder, name, symbol);
-        IUnbinder(unbinder).initialize(bundle, _router, address(this));
+        IUnbinder(unbinder).initialize(bundle, _router, address(this), _swapWhitelist);
 
         _bundles[bundle] = Bundle({
             unbinder: unbinder,
@@ -138,6 +146,19 @@ contract Controller is Initializable, OwnableUpgradeable {
     {
         for (uint256 i = 0; i < unbinders.length; i++) {
             IUnbinder(unbinders[i]).setPremium(premium);
+        }
+    }
+
+    function setUnbinderWhitelist(
+        address[] calldata unbinders,
+        address token,
+        bool flag
+    ) 
+        external
+        onlyOwner
+    {
+        for (uint256 i = 0; i < unbinders.length; i++) {
+            IUnbinder(unbinders[i]).setWhitelist(token, flag);
         }
     }
 
@@ -244,6 +265,10 @@ contract Controller is Initializable, OwnableUpgradeable {
 
     function getRebalancer() external view returns (address) {
         return address(_rebalancer);
+    }
+
+    function getDefaultWhitelist() external view returns (address[] memory) {
+        return _swapWhitelist;
     }
 
     /* ========== Misc ========== */

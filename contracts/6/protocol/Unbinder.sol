@@ -49,7 +49,7 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
 
     /* ========== Initialization ========== */
     
-    function initialize(address bundle, address router, address controller)
+    function initialize(address bundle, address router, address controller, address[] calldata whitelist)
         public override
         initializer
     {
@@ -58,6 +58,10 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         _router = IPancakeRouter02(router);
         _controller = controller;
         _premium = INIT_PREMIUM;
+
+        for(uint256 i = 0; i < whitelist.length; i++) {
+            _whitelist[whitelist[i]] = true;
+        }
     }
 
     /* ========== Control ========== */
@@ -68,6 +72,13 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     {
         require(_premium <= MAX_PREMIUM, "ERR_MAX_PREMIUM");
         _premium = premium;
+    }
+
+    function setWhitelist(address token, bool flag)
+        external override
+        _control_
+    {
+        _whitelist[token] = flag;
     }
 
     /* ========== Bundle Interaction ========== */
@@ -100,6 +111,13 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         returns (uint256)
     {
         return _premium;
+    }
+
+    function isWhitelisted(address token)
+        external view override
+        returns (bool)
+    {
+        return _whitelist[token];
     }
 
     /** @dev This function and contract are intended to allow constrained
@@ -160,6 +178,10 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         internal
     {
             require(amountOut > 0, "ERR_BAD_SWAP");
+
+            for (uint256 i = 1; i < path.length - 1; i++) {
+                require(_whitelist[path[i]], "ERR_BAD_PATH");
+            }
             
             // Min amount out to be 99% of expectation
             // unbinder used infrequently enough s.t. these don't need to be too strict

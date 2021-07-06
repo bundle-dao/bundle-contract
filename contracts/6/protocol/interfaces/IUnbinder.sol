@@ -8,7 +8,7 @@ import "./IBundle.sol";
 interface IUnbinder {
     event TokenUnbound(address token);
 
-    function initialize(address bundle, address router, address controller) external;
+    function initialize(address bundle, address router, address controller, address[] calldata whitelist) external;
 
     function handleUnboundToken(address token) external;
 
@@ -16,9 +16,13 @@ interface IUnbinder {
 
     function setPremium(uint256 premium) external;
 
+    function setWhitelist(address token, bool flag) external;
+
     function getPremium() external view returns (uint256);
 
     function getController() external view returns (address);
 
     function getBundle() external view returns (address);
+
+    function isWhitelisted(address token) external view returns (bool);
 }
