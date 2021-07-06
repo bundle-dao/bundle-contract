@@ -146,6 +146,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             require(balance >= MIN_BALANCE, "ERR_MIN_BALANCE");
 
             address token = tokens[i];
+            require(!_records[token].bound, "ERR_DUPLICATE_TOKEN");
             _records[token] = Record({
                 bound: true,
                 ready: true,
