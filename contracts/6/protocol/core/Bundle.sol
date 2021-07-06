@@ -414,8 +414,11 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _control_
     {
         require(targetDenorms.length == tokens.length, "ERR_ARR_LEN");
+
         for (uint256 i = 0; i < tokens.length; i++) {
-            _setTargetDenorm(tokens[i], targetDenorms[i]);
+            uint256 denorm = targetDenorms[i];
+            if (denorm < MIN_WEIGHT) denorm = MIN_WEIGHT;
+            _setTargetDenorm(tokens[i], denorm);
         }
     }
 
@@ -440,8 +443,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             "ERR_ARR_LEN"
         );
         uint256 unbindCounter = 0;
-        uint256 tLen = _tokens.length;
-        bool[] memory receivedIndices = new bool[](tLen);
+        bool[] memory receivedIndices = new bool[](_tokens.length);
         Record[] memory records = new Record[](tokens.length);
 
         // Mark which tokens on reindexing call are already in pool
@@ -452,23 +454,24 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
         // If any bound tokens were not sent in this call
         // set their target weights to 0 and increment counter
-        for (uint256 i = 0; i < tLen; i++) {
+        for (uint256 i = 0; i < _tokens.length; i++) {
             if (!receivedIndices[i]) {
                 _setTargetDenorm(_tokens[i], 0);
                 unbindCounter++;
             }
         }
 
+        require(unbindCounter <= _tokens.length - MIN_BOUND_TOKENS, "ERR_MAX_UNBIND");
+
         for (uint256 i = 0; i < tokens.length; i++) {
-            address token = tokens[i];
             // If an input weight is less than the minimum weight, use that instead.
             uint256 denorm = targetDenorms[i];
             if (denorm < MIN_WEIGHT) denorm = MIN_WEIGHT;
             if (!records[i].bound) {
                 // If the token is not bound, bind it.
-                _bind(token, minBalances[i], denorm);
+                _bind(tokens[i], minBalances[i], denorm);
             } else {
-                _setTargetDenorm(token, denorm);
+                _setTargetDenorm(tokens[i], denorm);
             }
         }
 

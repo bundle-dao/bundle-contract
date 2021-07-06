@@ -458,75 +458,39 @@ describe('Bundle', () => {
                 )
             ).to.be.revertedWith('ERR_MAX_WEIGHT');
         });
-    });
 
-    context('reweighting', async () => {
-        it('unbinds on 0 weight', async () => {
-            // Approve transfers for bundle
-            await token0AsDeployer.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
-            await token1AsDeployer.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
-            await token2AsDeployer.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
-
-            await controllerAsDeployer.setup(
-                bundleAsDeployer.address,
-                [token0AsDeployer.address, token1AsDeployer.address, token2AsDeployer.address],
-                [ethers.utils.parseEther('10000'), ethers.utils.parseEther('5000'), ethers.utils.parseEther('10000')],
-                [ethers.utils.parseEther('2'), ethers.utils.parseEther('1'), ethers.utils.parseEther('2')],
-                await deployer.getAddress()
-            );
-
-            await controllerAsDeployer.setTargetDelta(bundleAddr, duration.days(ethers.BigNumber.from('1')));
+        it('reverts when too many tokens unbound', async () => {
+            await setup();
 
             // Mint tokens
-            await token0AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('100000'));
-            await token1AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('50000'));
-            await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('100000'));
+            await token0AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('1000'));
+            await token1AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('500'));
 
             // Approve transfers for bundle
             await token0AsAlice.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
             await token1AsAlice.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
-            await token2AsAlice.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
 
-            await increase(duration.days(ethers.BigNumber.from('1')));
-
-            // Remove token
-            await controllerAsDeployer.reweighTokens(
-                bundleAsDeployer.address,
-                [token0AsDeployer.address, token1AsDeployer.address, token2AsDeployer.address],
-                [ethers.utils.parseEther('2'), ethers.utils.parseEther('1'), 0]
+            expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2')
             );
-
-            await increase(duration.hours(ethers.BigNumber.from('12')).sub(1));
-
-            await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
-                ethers.utils.parseEther('500'),
-                ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('500'),
-            ]);
-            expect(await bundleAsDeployer.getDenormalizedWeight(token2AsDeployer.address)).to.be.bignumber.and.eq(
-                ethers.utils.parseEther('1')
-            );
-            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
-                ethers.utils.parseEther('4')
-            );
-
-            await increase(duration.hours(ethers.BigNumber.from('12')).sub(1));
-
-            await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
-                ethers.utils.parseEther('500'),
-                ethers.utils.parseEther('250'),
-                ethers.utils.parseEther('500'),
-            ]);
-
             expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
                 ethers.utils.parseEther('3')
             );
-            expect(await bundleAsDeployer.isBound(token2AsDeployer.address)).to.eq(false);
-            // Result of negligible rounding error
-            expect(await token2AsDeployer.balanceOf(unbinderAddr)).to.be.bignumber.and.eq('10999999999999999999500');
-            expect(await token2AsDeployer.balanceOf(token2AsDeployer.address)).to.be.bignumber.and.eq('0');
-        });
 
+            await increase(duration.days(ethers.BigNumber.from('1')));
+
+            await expect(
+                controllerAsDeployer.reindexTokens(
+                    bundleAsDeployer.address,
+                    [token1AsDeployer.address],
+                    [ethers.utils.parseEther('1')],
+                    [0]
+                )
+            ).to.be.revertedWith('ERR_MAX_UNBIND');
+        });
+    });
+
+    context('reweighting', async () => {
         it('reweighs correctly when decreasing', async () => {
             await setup();
 
@@ -660,6 +624,59 @@ describe('Bundle', () => {
                     [ethers.utils.parseEther('100'), ethers.utils.parseEther('1')]
                 )
             ).to.be.revertedWith('ERR_MAX_WEIGHT');
+        });
+
+        it('defaults to min weight when below min', async () => {
+            await setup();
+
+            // Mint tokens
+            await token0AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('1000'));
+            await token1AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('500'));
+
+            // Approve transfers for bundle
+            await token0AsAlice.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
+            await token1AsAlice.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
+
+            expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2')
+            );
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3')
+            );
+
+            await increase(duration.days(ethers.BigNumber.from('1')));
+
+            await controllerAsDeployer.reweighTokens(
+                bundleAsDeployer.address,
+                [token0AsDeployer.address, token1AsDeployer.address],
+                [ethers.utils.parseEther('0'), ethers.utils.parseEther('1')]
+            );
+
+            await increase(duration.hours(ethers.BigNumber.from('12')).sub(1));
+
+            await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
+                ethers.utils.parseEther('500'),
+                ethers.utils.parseEther('250'),
+            ]);
+            expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('1.25')
+            );
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2.25')
+            );
+
+            await increase(duration.hours(ethers.BigNumber.from('12')));
+
+            await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
+                ethers.utils.parseEther('500'),
+                ethers.utils.parseEther('250'),
+            ]);
+            expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('0.5')
+            );
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('1.5')
+            );
         });
     });
 
