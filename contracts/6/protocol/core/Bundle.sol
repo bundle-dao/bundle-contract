@@ -615,10 +615,15 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
                 // Set the initial denorm value to the minimum weight times one plus
                 // the ratio of the increase in balance over the minimum to the minimum
                 // balance.
-                // weight = (1 + ((bal - min_bal) / min_bal)) * min_weight
-                uint256 additionalBalance = bsub(balance, _minBalances[token]);
-                uint256 balRatio = bdiv(additionalBalance, _minBalances[token]);
-                uint256 denorm = badd(MIN_WEIGHT, bmul(MIN_WEIGHT, balRatio));
+                // weight = min((1 + ((bal - min_bal) / min_bal)) * min_weight, MAX_WEIGHT)
+                uint256 denorm = bmin(
+                    badd(
+                        MIN_WEIGHT, 
+                        bmul(MIN_WEIGHT, bdiv(bsub(balance, _minBalances[token]), _minBalances[token]))
+                    ),
+                    MAX_WEIGHT
+                );
+
                 record.denorm = denorm;
                 record.lastUpdateTime = block.timestamp;
                 record.targetTime = badd(block.timestamp, _targetDelta);
