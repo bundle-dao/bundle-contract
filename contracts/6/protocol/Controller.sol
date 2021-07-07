@@ -23,7 +23,7 @@ contract Controller is Initializable, OwnableUpgradeable {
 
     /* ========== Storage ========== */
 
-    struct Bundle {
+    struct BundleMetadata {
         address unbinder;
         bool    isInitialized;
         bool    isSetup;
@@ -36,7 +36,7 @@ contract Controller is Initializable, OwnableUpgradeable {
     address private _router;
     uint256 private _delay;
 
-    mapping(address => Bundle) private _bundles;
+    mapping(address => BundleMetadata) private _bundles;
     address[] private _swapWhitelist;
 
     /* ========== Initialization ========== */
@@ -92,7 +92,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         IBundle(bundle).initialize(address(this), address(_rebalancer), unbinder, name, symbol);
         IUnbinder(unbinder).initialize(bundle, _router, address(this), _swapWhitelist);
 
-        _bundles[bundle] = Bundle({
+        _bundles[bundle] = BundleMetadata({
             unbinder: unbinder,
             isInitialized: true,
             isSetup: false,
@@ -250,7 +250,7 @@ contract Controller is Initializable, OwnableUpgradeable {
             uint256 lastUpdateTime
         )
     {
-        Bundle memory metadata = _bundles[bundle];
+        BundleMetadata memory metadata = _bundles[bundle];
         return (
             metadata.unbinder,
             metadata.isInitialized,
