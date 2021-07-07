@@ -562,6 +562,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         require(_records[token].bound, "ERR_NOT_BOUND");
         require(denorm >= MIN_WEIGHT || denorm == 0, "ERR_MIN_WEIGHT");
         require(denorm <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
+        _updateDenorm(token);
         _records[token].targetDenorm = denorm;
         _records[token].targetTime = badd(block.timestamp, _targetDelta);
         _records[token].lastUpdateTime = block.timestamp;

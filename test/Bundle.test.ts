@@ -678,6 +678,74 @@ describe('Bundle', () => {
                 ethers.utils.parseEther('1.5')
             );
         });
+
+        it('updates weights on premature reweighting', async () => {
+            await setup();
+            await controllerAsDeployer.setTargetDelta(bundleAddr, duration.days(ethers.BigNumber.from('2')));
+
+            // Mint tokens
+            await token0AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('1000'));
+            await token1AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('500'));
+
+            // Approve transfers for bundle
+            await token0AsAlice.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
+            await token1AsAlice.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
+
+            expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2')
+            );
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3')
+            );
+
+            await increase(duration.days(ethers.BigNumber.from('1')));
+
+            await controllerAsDeployer.reweighTokens(
+                bundleAsDeployer.address,
+                [token0AsDeployer.address, token1AsDeployer.address],
+                [ethers.utils.parseEther('3'), ethers.utils.parseEther('1')]
+            );
+
+            await increase(duration.days(ethers.BigNumber.from('1')).sub(1));
+
+            await controllerAsDeployer.reweighTokens(
+                bundleAsDeployer.address,
+                [token0AsDeployer.address, token1AsDeployer.address],
+                [ethers.utils.parseEther('2'), ethers.utils.parseEther('1')]
+            );
+            expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2.5')
+            );
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3.5')
+            );
+
+            await increase(duration.days(ethers.BigNumber.from('1')).sub(1));
+
+            await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
+                ethers.utils.parseEther('500'),
+                ethers.utils.parseEther('250'),
+            ]);
+            expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2.25')
+            );
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3.25')
+            );
+
+            await increase(duration.days(ethers.BigNumber.from('1')));
+
+            await bundleAsAlice.joinPool(ethers.utils.parseEther('5'), [
+                ethers.utils.parseEther('500'),
+                ethers.utils.parseEther('250'),
+            ]);
+            expect(await bundleAsDeployer.getDenormalizedWeight(token0AsDeployer.address)).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('2')
+            );
+            expect(await bundleAsDeployer.getTotalDenormalizedWeight()).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('3')
+            );
+        });
     });
 
     context('setup', async () => {
