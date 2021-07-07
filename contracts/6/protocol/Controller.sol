@@ -250,12 +250,11 @@ contract Controller is Initializable, OwnableUpgradeable {
             uint256 lastUpdateTime
         )
     {
-        BundleMetadata memory metadata = _bundles[bundle];
         return (
-            metadata.unbinder,
-            metadata.isInitialized,
-            metadata.isSetup,
-            metadata.lastUpdateTime
+            _bundles[bundle].unbinder,
+            _bundles[bundle].isInitialized,
+            _bundles[bundle].isSetup,
+            _bundles[bundle].lastUpdateTime
         );
     }
 
