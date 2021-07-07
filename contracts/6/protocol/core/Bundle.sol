@@ -199,6 +199,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(_records[token].bound && !_records[token].ready, "ERR_BAD_TOKEN");
         _minBalances[token] = minBalance;
+        emit LogMinBalance(msg.sender, token, minBalance);
     }
 
     function setStreamingFee(uint256 streamingFee) 
@@ -207,6 +208,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(streamingFee < MAX_STREAMING_FEE, "ERR_MAX_STREAMING_FEE");
         _streamingFee = streamingFee;
+        emit LogStreamingFee(msg.sender, streamingFee);
     }
 
     function setExitFee(uint256 exitFee) 
@@ -215,6 +217,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(exitFee < MAX_EXIT_FEE, "ERR_MAX_STREAMING_FEE");
         _exitFee = exitFee;
+        emit LogExitFee(msg.sender, exitFee);
     }
 
     function setTargetDelta(uint256 targetDelta)
@@ -223,6 +226,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(targetDelta >= MIN_TARGET_DELTA && targetDelta <= MAX_TARGET_DELTA, "ERR_TARGET_DELTA");
         _targetDelta = targetDelta;
+        emit LogTargetDelta(msg.sender, targetDelta);
     }
 
     function collectStreamingFee()
@@ -251,7 +255,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         }
 
         _lastStreamingTime = block.timestamp;
-        emit LogStreamingFee(msg.sender);
+        emit LogCollectFee(msg.sender);
     }
 
     /* ==========  Getters  ========== */
@@ -421,6 +425,8 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             if (denorm < MIN_WEIGHT) denorm = MIN_WEIGHT;
             _setTargetDenorm(tokens[i], denorm);
         }
+
+        emit LogReweigh(msg.sender, tokens, targetDenorms);
     }
 
     /**
@@ -479,6 +485,8 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         // Ensure the number of tokens at equilibrium from this 
         // operation is lte max bound tokens
         require(_tokens.length - unbindCounter <= MAX_BOUND_TOKENS, "ERR_MAX_BOUND_TOKENS");
+        emit LogReindex(msg.sender, tokens, targetDenorms, minBalances);
+
     }
 
     /* ==========  Internal Token Weighting  ========== */

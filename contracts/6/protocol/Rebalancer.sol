@@ -69,6 +69,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     {
         require(_premium <= MAX_PREMIUM, "ERR_MAX_PREMIUM");
         _premium = premium;
+        emit LogPremium(msg.sender, premium);
     }
 
     function setWhitelist(address pool, bool flag)
@@ -76,6 +77,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _control_
     {
         _poolAuth[pool] = flag;
+        emit LogWhitelist(msg.sender, pool, flag);
     }
 
     function setOracle(address oracle)
@@ -83,6 +85,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _control_
     {
         _oracle = IPriceOracle(oracle);
+        emit LogOracle(msg.sender, oracle);
     }
 
     function setGap(uint256 gap)
@@ -90,6 +93,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         _control_
     {
         _gap = gap;
+        emit LogGap(msg.sender, gap);
     }
 
     /* ========== Getters ========== */

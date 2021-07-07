@@ -2,6 +2,27 @@
 pragma solidity 0.6.12;
 
 interface IRebalancer {
+    event LogPremium(
+        address indexed caller,
+        uint256         premium
+    );
+
+    event LogWhitelist(
+        address indexed caller,
+        address         bundle,
+        bool            flag
+    );
+
+    event LogOracle(
+        address indexed caller,
+        address         oracle
+    );
+
+    event LogGap(
+        address indexed caller,
+        uint256         gap
+    );
+
     function setPremium(uint256 premium) external;
 
     function setWhitelist(address pool, bool flag) external;
