@@ -22,7 +22,7 @@ contract PriceOracle is Ownable, IPriceOracle {
 
     /* ========== Storage ========== */
 
-    uint256 public constant PERIOD = 1 hours;
+    uint256 public constant PERIOD = 15 minutes;
     address private _factory;
     address private _peg;
     mapping(address=>PriceData) private _prices;
