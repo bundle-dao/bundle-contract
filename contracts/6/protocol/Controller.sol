@@ -127,6 +127,10 @@ contract Controller is Initializable, OwnableUpgradeable {
         _rebalancer.setWhitelist(bundle, flag);
     }
 
+    function setRebalancerWhitelist(address token, bool flag) external onlyOwner {
+        _rebalancer.setSwapWhitelist(token, flag);
+    }
+
     function setOracle(address oracle) external onlyOwner {
         _rebalancer.setOracle(oracle);
     }

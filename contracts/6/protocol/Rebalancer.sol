@@ -35,6 +35,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     IPriceOracle private _oracle;
 
     mapping(address=>bool) private _poolAuth;
+    mapping(address=>bool) private _swapWhitelist;
 
     /* ========== Modifiers ========== */
     
@@ -78,6 +79,14 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     {
         _poolAuth[pool] = flag;
         emit LogWhitelist(msg.sender, pool, flag);
+    }
+
+    function setSwapWhitelist(address token, bool flag)
+        external override
+        _control_
+    {
+        _swapWhitelist[token] = flag;
+        emit LogSwapWhitelist(msg.sender, token, flag);
     }
 
     function setOracle(address oracle)
@@ -133,6 +142,13 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         return _poolAuth[pool];
     }
 
+    function isSwapWhitelisted(address token)
+        external view override
+        returns (bool)
+    {
+        return _swapWhitelist[token];
+    }
+
     /** @dev This function allows the user to execute controlled arbitrage trades against a 
      *  whitelisted Bundle. This works by ensuring the provided funds are returned, with any 
      *  profits being split between the caller and pool.
@@ -165,6 +181,10 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         // Path validation
         require(path[0] == tokenOut, "ERR_BAD_PATH");
         require(path[path.length - 1] == tokenIn, "ERR_BAD_PATH");
+
+        for (uint256 i = 1; i < path.length - 1; i++) {
+            require(_swapWhitelist[path[i]], "ERR_BAD_PATH");
+        }
 
         // Approve tokenOut for router if not done already
         if (IERC20Upgradeable(tokenOut).allowance(address(this), address(_router)) != type(uint256).max) {

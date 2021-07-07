@@ -13,6 +13,12 @@ interface IRebalancer {
         bool            flag
     );
 
+    event LogSwapWhitelist(
+        address indexed caller,
+        address         token,
+        bool            flag
+    );
+
     event LogOracle(
         address indexed caller,
         address         oracle
@@ -27,6 +33,8 @@ interface IRebalancer {
 
     function setWhitelist(address pool, bool flag) external;
 
+    function setSwapWhitelist(address token, bool flag) external;
+
     function setOracle(address oracle) external;
 
     function setGap(uint256 gap) external;
@@ -36,6 +44,8 @@ interface IRebalancer {
     function getPremium() external view returns (uint256);
 
     function isWhitelisted(address pool) external view returns (bool);
+
+    function isSwapWhitelisted(address token) external view returns (bool);
 
     function getOracle() external view returns (address);
 
