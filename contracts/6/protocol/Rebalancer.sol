@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@bundle-dao/pancakeswap-peripheral/contracts/interfaces/IPancakeRouter02.sol";
 
 import "./interfaces/IUnbinder.sol";
@@ -16,6 +17,7 @@ import "./interfaces/IPriceOracle.sol";
 contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
+    using AddressUpgradeable for address payable;
 
     /* ========== Constants ========== */
 
@@ -42,7 +44,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     }
 
     modifier _eoa_() {
-        require(msg.sender == tx.origin, "ERR_NOT_EOA");
+        require(!msg.sender.isContract(), "ERR_NOT_EOA");
         _;
     }
 

@@ -7,7 +7,7 @@
       "hash": "0xe614452e184a35ee969544a86583d37be2c746fe8800eeea6572a4cd6277341c",
       "type": 0,
       "accessList": null,
-      "blockHash": "0xd509ecc0b5af60949801493b9bdd9bf998c01449c4c091e2ed7b46601a6b3b22",
+      "blockHash": "0xda7b8c82e9025f3206590e94fa745cac072092d0472186c4dfca431b4d35c921",
       "blockNumber": 7,
       "transactionIndex": 0,
       "confirmations": 1,
@@ -7475,13 +7475,13 @@
           {
             "contract": "Controller",
             "label": "_factory",
-            "type": "t_contract(IBundleFactory)13115",
+            "type": "t_contract(IBundleFactory)13123",
             "src": "contracts/6/protocol/Controller.sol:33"
           },
           {
             "contract": "Controller",
             "label": "_rebalancer",
-            "type": "t_contract(IRebalancer)13368",
+            "type": "t_contract(IRebalancer)13376",
             "src": "contracts/6/protocol/Controller.sol:34"
           },
           {
@@ -7510,10 +7510,10 @@
           }
         ],
         "types": {
-          "t_contract(IBundleFactory)13115": {
+          "t_contract(IBundleFactory)13123": {
             "label": "contract IBundleFactory"
           },
-          "t_contract(IRebalancer)13368": {
+          "t_contract(IRebalancer)13376": {
             "label": "contract IRebalancer"
           },
           "t_address": {
@@ -7557,97 +7557,6 @@
           },
           "t_array(t_uint256)50_storage": {
             "label": "uint256[50]"
-          }
-        }
-      }
-    },
-    "1c2f40ce710d7840a82177cb7701ecc6b3bdb5b700991762010293e2764098c8": {
-      "address": "0x0b4f49585BBD9c020e9A0c30D0b9175C5130D407",
-      "txHash": "0xd0a6023acd0895d2e0cc1bcbc0282b4a01bc169abbd341cdd37a6d798683e9fb",
-      "layout": {
-        "storage": [
-          {
-            "contract": "Initializable",
-            "label": "_initialized",
-            "type": "t_bool",
-            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:25"
-          },
-          {
-            "contract": "Initializable",
-            "label": "_initializing",
-            "type": "t_bool",
-            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:30"
-          },
-          {
-            "contract": "ReentrancyGuardUpgradeable",
-            "label": "_status",
-            "type": "t_uint256",
-            "src": "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol:37"
-          },
-          {
-            "contract": "ReentrancyGuardUpgradeable",
-            "label": "__gap",
-            "type": "t_array(t_uint256)49_storage",
-            "src": "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol:67"
-          },
-          {
-            "contract": "Rebalancer",
-            "label": "_controller",
-            "type": "t_address",
-            "src": "contracts/6/protocol/Rebalancer.sol:29"
-          },
-          {
-            "contract": "Rebalancer",
-            "label": "_premium",
-            "type": "t_uint256",
-            "src": "contracts/6/protocol/Rebalancer.sol:30"
-          },
-          {
-            "contract": "Rebalancer",
-            "label": "_gap",
-            "type": "t_uint256",
-            "src": "contracts/6/protocol/Rebalancer.sol:31"
-          },
-          {
-            "contract": "Rebalancer",
-            "label": "_router",
-            "type": "t_contract(IPancakeRouter02)395",
-            "src": "contracts/6/protocol/Rebalancer.sol:32"
-          },
-          {
-            "contract": "Rebalancer",
-            "label": "_oracle",
-            "type": "t_contract(IPriceOracle)13300",
-            "src": "contracts/6/protocol/Rebalancer.sol:33"
-          },
-          {
-            "contract": "Rebalancer",
-            "label": "_poolAuth",
-            "type": "t_mapping(t_address,t_bool)",
-            "src": "contracts/6/protocol/Rebalancer.sol:35"
-          }
-        ],
-        "types": {
-          "t_address": {
-            "label": "address"
-          },
-          "t_uint256": {
-            "label": "uint256"
-          },
-          "t_contract(IPancakeRouter02)395": {
-            "label": "contract IPancakeRouter02"
-          },
-          "t_contract(IPriceOracle)13300": {
-            "label": "contract IPriceOracle"
-          },
-          "t_mapping(t_address,t_bool)": {
-            "label": "mapping(address => bool)"
-          },
-          "t_bool": {
-            "label": "bool"
-          },
-          "t_array(t_uint256)49_storage": {
-            "label": "uint256[49]"
           }
         }
       }
@@ -7760,6 +7669,97 @@
           },
           "t_bool": {
             "label": "bool"
+          }
+        }
+      }
+    },
+    "bbea2a4074e3358b3226f93e1b93345ec5b60a0b01e961b5df1f3bfa733bd2a2": {
+      "address": "0x0b4f49585BBD9c020e9A0c30D0b9175C5130D407",
+      "txHash": "0x64441550362c4586198713e4a33051db74458570dea596650b29443747d9ebaf",
+      "layout": {
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:25"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:30"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "_status",
+            "type": "t_uint256",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol:37"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol:67"
+          },
+          {
+            "contract": "Rebalancer",
+            "label": "_controller",
+            "type": "t_address",
+            "src": "contracts/6/protocol/Rebalancer.sol:31"
+          },
+          {
+            "contract": "Rebalancer",
+            "label": "_premium",
+            "type": "t_uint256",
+            "src": "contracts/6/protocol/Rebalancer.sol:32"
+          },
+          {
+            "contract": "Rebalancer",
+            "label": "_gap",
+            "type": "t_uint256",
+            "src": "contracts/6/protocol/Rebalancer.sol:33"
+          },
+          {
+            "contract": "Rebalancer",
+            "label": "_router",
+            "type": "t_contract(IPancakeRouter02)395",
+            "src": "contracts/6/protocol/Rebalancer.sol:34"
+          },
+          {
+            "contract": "Rebalancer",
+            "label": "_oracle",
+            "type": "t_contract(IPriceOracle)13308",
+            "src": "contracts/6/protocol/Rebalancer.sol:35"
+          },
+          {
+            "contract": "Rebalancer",
+            "label": "_poolAuth",
+            "type": "t_mapping(t_address,t_bool)",
+            "src": "contracts/6/protocol/Rebalancer.sol:37"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_contract(IPancakeRouter02)395": {
+            "label": "contract IPancakeRouter02"
+          },
+          "t_contract(IPriceOracle)13308": {
+            "label": "contract IPriceOracle"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
           }
         }
       }
