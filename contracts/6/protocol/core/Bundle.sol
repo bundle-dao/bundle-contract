@@ -146,6 +146,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             require(balance >= MIN_BALANCE, "ERR_MIN_BALANCE");
 
             address token = tokens[i];
+            require(!_records[token].bound, "ERR_DUPLICATE_TOKEN");
             _records[token] = Record({
                 bound: true,
                 ready: true,
@@ -198,6 +199,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(_records[token].bound && !_records[token].ready, "ERR_BAD_TOKEN");
         _minBalances[token] = minBalance;
+        emit LogMinBalance(msg.sender, token, minBalance);
     }
 
     function setStreamingFee(uint256 streamingFee) 
@@ -206,6 +208,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(streamingFee < MAX_STREAMING_FEE, "ERR_MAX_STREAMING_FEE");
         _streamingFee = streamingFee;
+        emit LogStreamingFee(msg.sender, streamingFee);
     }
 
     function setExitFee(uint256 exitFee) 
@@ -214,6 +217,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(exitFee < MAX_EXIT_FEE, "ERR_MAX_STREAMING_FEE");
         _exitFee = exitFee;
+        emit LogExitFee(msg.sender, exitFee);
     }
 
     function setTargetDelta(uint256 targetDelta)
@@ -222,6 +226,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
     {
         require(targetDelta >= MIN_TARGET_DELTA && targetDelta <= MAX_TARGET_DELTA, "ERR_TARGET_DELTA");
         _targetDelta = targetDelta;
+        emit LogTargetDelta(msg.sender, targetDelta);
     }
 
     function collectStreamingFee()
@@ -250,7 +255,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         }
 
         _lastStreamingTime = block.timestamp;
-        emit LogStreamingFee(msg.sender);
+        emit LogCollectFee(msg.sender);
     }
 
     /* ==========  Getters  ========== */
@@ -414,9 +419,14 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         _control_
     {
         require(targetDenorms.length == tokens.length, "ERR_ARR_LEN");
+
         for (uint256 i = 0; i < tokens.length; i++) {
-            _setTargetDenorm(tokens[i], targetDenorms[i]);
+            uint256 denorm = targetDenorms[i];
+            if (denorm < MIN_WEIGHT) denorm = MIN_WEIGHT;
+            _setTargetDenorm(tokens[i], denorm);
         }
+
+        emit LogReweigh(msg.sender, tokens, targetDenorms);
     }
 
     /**
@@ -440,8 +450,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
             "ERR_ARR_LEN"
         );
         uint256 unbindCounter = 0;
-        uint256 tLen = _tokens.length;
-        bool[] memory receivedIndices = new bool[](tLen);
+        bool[] memory receivedIndices = new bool[](_tokens.length);
         Record[] memory records = new Record[](tokens.length);
 
         // Mark which tokens on reindexing call are already in pool
@@ -452,29 +461,32 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
 
         // If any bound tokens were not sent in this call
         // set their target weights to 0 and increment counter
-        for (uint256 i = 0; i < tLen; i++) {
+        for (uint256 i = 0; i < _tokens.length; i++) {
             if (!receivedIndices[i]) {
                 _setTargetDenorm(_tokens[i], 0);
                 unbindCounter++;
             }
         }
 
+        require(unbindCounter <= _tokens.length - MIN_BOUND_TOKENS, "ERR_MAX_UNBIND");
+
         for (uint256 i = 0; i < tokens.length; i++) {
-            address token = tokens[i];
             // If an input weight is less than the minimum weight, use that instead.
             uint256 denorm = targetDenorms[i];
             if (denorm < MIN_WEIGHT) denorm = MIN_WEIGHT;
             if (!records[i].bound) {
                 // If the token is not bound, bind it.
-                _bind(token, minBalances[i], denorm);
+                _bind(tokens[i], minBalances[i], denorm);
             } else {
-                _setTargetDenorm(token, denorm);
+                _setTargetDenorm(tokens[i], denorm);
             }
         }
 
         // Ensure the number of tokens at equilibrium from this 
         // operation is lte max bound tokens
         require(_tokens.length - unbindCounter <= MAX_BOUND_TOKENS, "ERR_MAX_BOUND_TOKENS");
+        emit LogReindex(msg.sender, tokens, targetDenorms, minBalances);
+
     }
 
     /* ==========  Internal Token Weighting  ========== */
@@ -558,6 +570,7 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
         require(_records[token].bound, "ERR_NOT_BOUND");
         require(denorm >= MIN_WEIGHT || denorm == 0, "ERR_MIN_WEIGHT");
         require(denorm <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
+        _updateDenorm(token);
         _records[token].targetDenorm = denorm;
         _records[token].targetTime = badd(block.timestamp, _targetDelta);
         _records[token].lastUpdateTime = block.timestamp;
@@ -610,10 +623,15 @@ contract Bundle is Initializable, BToken, BMath, IBundle {
                 // Set the initial denorm value to the minimum weight times one plus
                 // the ratio of the increase in balance over the minimum to the minimum
                 // balance.
-                // weight = (1 + ((bal - min_bal) / min_bal)) * min_weight
-                uint256 additionalBalance = bsub(balance, _minBalances[token]);
-                uint256 balRatio = bdiv(additionalBalance, _minBalances[token]);
-                uint256 denorm = badd(MIN_WEIGHT, bmul(MIN_WEIGHT, balRatio));
+                // weight = min((1 + ((bal - min_bal) / min_bal)) * min_weight, MAX_WEIGHT)
+                uint256 denorm = bmin(
+                    badd(
+                        MIN_WEIGHT, 
+                        bmul(MIN_WEIGHT, bdiv(bsub(balance, _minBalances[token]), _minBalances[token]))
+                    ),
+                    MAX_WEIGHT
+                );
+
                 record.denorm = denorm;
                 record.lastUpdateTime = block.timestamp;
                 record.targetTime = badd(block.timestamp, _targetDelta);

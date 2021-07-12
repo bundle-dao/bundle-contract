@@ -28,7 +28,8 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     IBundle private _bundle;
     IPancakeRouter02 private _router;
 
-    mapping(address=>bool) private _whitelist;
+    mapping(address=>SwapToken) private _swapWhitelist;
+    address[] private _swapTokens;
 
     /* ========== Modifiers ========== */
 
@@ -49,7 +50,7 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
 
     /* ========== Initialization ========== */
     
-    function initialize(address bundle, address router, address controller)
+    function initialize(address bundle, address router, address controller, address[] calldata whitelist)
         public override
         initializer
     {
@@ -58,6 +59,18 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         _router = IPancakeRouter02(router);
         _controller = controller;
         _premium = INIT_PREMIUM;
+
+        uint256 index = 0;
+        for(uint256 i = 0; i < whitelist.length; i++) {
+            if (!_swapWhitelist[whitelist[i]].flag) {
+                _swapWhitelist[whitelist[i]] = SwapToken({
+                    flag: true,
+                    index: index
+                });
+                _swapTokens.push(whitelist[i]);
+                index++;
+            }
+        }
     }
 
     /* ========== Control ========== */
@@ -68,6 +81,31 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     {
         require(_premium <= MAX_PREMIUM, "ERR_MAX_PREMIUM");
         _premium = premium;
+        emit LogPremium(msg.sender, premium);
+    }
+
+    function setSwapWhitelist(address token, bool flag)
+        external override
+        _control_
+    {
+        require(flag != _swapWhitelist[token].flag, "ERR_FLAG_NOT_CHANGED");
+        uint256 index;
+
+        if (flag) {
+            _swapTokens.push(token);
+            index = _swapTokens.length - 1;
+        } else {
+            _swapTokens[_swapWhitelist[token].index] = _swapTokens[_swapTokens.length - 1];
+            _swapTokens.pop();
+            index = 0;
+        }
+
+        _swapWhitelist[token] = SwapToken({
+            flag: flag,
+            index: index
+        });
+
+        emit LogSwapWhitelist(msg.sender, token, flag);
     }
 
     /* ========== Bundle Interaction ========== */
@@ -100,6 +138,20 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         returns (uint256)
     {
         return _premium;
+    }
+
+    function isSwapWhitelisted(address token)
+        external view override
+        returns (bool)
+    {
+        return _swapWhitelist[token].flag;
+    }
+
+    function getSwapWhitelist()
+        external view override
+        returns (address[] memory)
+    {
+        return _swapTokens;
     }
 
     /** @dev This function and contract are intended to allow constrained
@@ -160,6 +212,10 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
         internal
     {
             require(amountOut > 0, "ERR_BAD_SWAP");
+
+            for (uint256 i = 1; i < path.length - 1; i++) {
+                require(_swapWhitelist[path[i]].flag, "ERR_BAD_PATH");
+            }
             
             // Min amount out to be 99% of expectation
             // unbinder used infrequently enough s.t. these don't need to be too strict

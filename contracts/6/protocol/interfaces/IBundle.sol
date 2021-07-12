@@ -48,19 +48,18 @@ interface IBundle {
 
     event LogPublicSwapEnabled();
 
-    event LogCall(
-        bytes4  indexed sig,
-        address indexed caller,
-        bytes           data
-    ) anonymous;
-
     event LogRebalancable(
         address indexed caller,
         bool            rebalancable
     );
 
-    event LogStreamingFee(
+    event LogCollectFee(
         address indexed caller
+    );
+
+    event LogStreamingFee(
+        address indexed caller,
+        uint256         fee
     );
 
     event LogTokenBound(
@@ -69,6 +68,35 @@ interface IBundle {
 
     event LogTokenUnbound(
         address indexed token
+    );
+
+    event LogMinBalance(
+        address indexed caller,
+        address indexed token,
+        uint256         minBalance
+    );
+
+    event LogTargetDelta(
+        address indexed caller,
+        uint256         targetDelta
+    );
+
+    event LogExitFee(
+        address indexed caller,
+        uint256         exitFee
+    );
+
+    event LogReindex(
+        address indexed caller,
+        address[]       tokens,
+        uint256[]       targetDenorms,
+        uint256[]       minBalances
+    );
+
+    event LogReweigh(
+        address indexed caller,
+        address[]       tokens,
+        uint256[]       targetDenorms
     );
 
     /* ========== Initialization ========== */

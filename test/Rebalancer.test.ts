@@ -40,6 +40,7 @@ describe('Rebalancer', () => {
     let token1AsDeployer: MockERC20;
     let token2AsDeployer: MockERC20;
     let token3AsDeployer: MockERC20;
+    let token4AsDeployer: MockERC20;
     let token0AsAlice: MockERC20;
     let token1AsAlice: MockERC20;
     let token2AsAlice: MockERC20;
@@ -135,7 +136,7 @@ describe('Rebalancer', () => {
         controllerAsAlice = Controller__factory.connect(controller.address, alice);
 
         tokens = new Array();
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 5; i++) {
             const MockERC20 = (await ethers.getContractFactory('MockERC20', deployer)) as MockERC20__factory;
             const mockERC20 = (await upgrades.deployProxy(MockERC20, [`TOKEN${i}`, `TOKEN${i}`])) as MockERC20;
             await mockERC20.deployed();
@@ -146,16 +147,24 @@ describe('Rebalancer', () => {
         token1AsDeployer = MockERC20__factory.connect(tokens[1].address, deployer);
         token2AsDeployer = MockERC20__factory.connect(tokens[2].address, deployer);
         token3AsDeployer = MockERC20__factory.connect(tokens[3].address, deployer);
+        token4AsDeployer = MockERC20__factory.connect(tokens[4].address, deployer);
         token0AsAlice = MockERC20__factory.connect(tokens[0].address, alice);
         token1AsAlice = MockERC20__factory.connect(tokens[1].address, alice);
         token2AsAlice = MockERC20__factory.connect(tokens[2].address, alice);
         token3AsAlice = MockERC20__factory.connect(tokens[3].address, alice);
 
+        // Whitelist tokens on rebalancer
+        await controller.setRebalancerSwapWhitelist(tokens[0].address, true);
+        await controller.setRebalancerSwapWhitelist(tokens[1].address, true);
+        await controller.setRebalancerSwapWhitelist(tokens[2].address, true);
+        await controller.setRebalancerSwapWhitelist(tokens[3].address, true);
+
         // Mint tokens
-        await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
-        await token1AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('50000'));
-        await token2AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('200000'));
-        await token3AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
+        await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('200000'));
+        await token1AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
+        await token2AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('400000'));
+        await token3AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('200000'));
+        await token4AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('200000'));
         await token0AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('100000'));
         await token1AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('50000'));
         await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('100000'));
@@ -176,6 +185,7 @@ describe('Rebalancer', () => {
         await token1AsDeployer.approve(router.address, ethers.constants.MaxUint256);
         await token2AsDeployer.approve(router.address, ethers.constants.MaxUint256);
         await token3AsDeployer.approve(router.address, ethers.constants.MaxUint256);
+        await token4AsDeployer.approve(router.address, ethers.constants.MaxUint256);
         await token0AsAlice.approve(rebalancer.address, ethers.constants.MaxUint256);
         await token0AsAlice.approve(router.address, ethers.constants.MaxUint256);
 
@@ -227,6 +237,28 @@ describe('Rebalancer', () => {
             token3AsDeployer.address,
             ethers.utils.parseEther('10000'),
             ethers.utils.parseEther('20000'),
+            0,
+            0,
+            await deployer.getAddress(),
+            '2000000000'
+        );
+
+        await router.addLiquidity(
+            token0AsDeployer.address,
+            token4AsDeployer.address,
+            ethers.utils.parseEther('50000'),
+            ethers.utils.parseEther('50000'),
+            0,
+            0,
+            await deployer.getAddress(),
+            '2000000000'
+        );
+
+        await router.addLiquidity(
+            token1AsDeployer.address,
+            token4AsDeployer.address,
+            ethers.utils.parseEther('25000'),
+            ethers.utils.parseEther('50000'),
             0,
             0,
             await deployer.getAddress(),
@@ -398,6 +430,38 @@ describe('Rebalancer', () => {
             ).to.be.revertedWith('ERR_SWAP_OUT_OF_GAP');
         });
 
+        it('reverts when on non-whitelisted path', async () => {
+            await controllerAsDeployer.setPremium(ethers.utils.parseEther('4').div(100));
+
+            await priceOracle.setReferencePath(token0AsDeployer.address, [
+                token0AsDeployer.address,
+                token2AsDeployer.address,
+            ]);
+            await priceOracle.setReferencePath(token1AsDeployer.address, [
+                token1AsDeployer.address,
+                token2AsDeployer.address,
+            ]);
+
+            await routerAsAlice.swapExactTokensForTokens(
+                ethers.utils.parseEther('90000'),
+                ethers.utils.parseEther('0'),
+                [token0AsAlice.address, token2AsAlice.address],
+                await alice.getAddress(),
+                '2000000000'
+            );
+
+            await increase(duration.hours(ethers.BigNumber.from('1')));
+
+            await expect(rebalancerAsAlice.swap(
+                bundleAsAlice.address,
+                token0AsAlice.address,
+                token1AsAlice.address,
+                ethers.utils.parseEther('100'),
+                '2000000000',
+                [token1AsAlice.address, tokens[4].address, token0AsAlice.address]
+            )).to.be.revertedWith('ERR_BAD_PATH');
+        });
+
         it('succeeds for valid conditions', async () => {
             await controllerAsDeployer.setPremium(ethers.utils.parseEther('4').div(100));
 
@@ -464,5 +528,29 @@ describe('Rebalancer', () => {
         it('reverts when non-controller tries to set premium', async () => {
             await expect(rebalancerAsAlice.setPremium(0)).to.be.revertedWith('ERR_NOT_CONTROLLER');
         });
+
+        it('reverts when flag not changed for swap token', async () => {
+            await expect(controller.setRebalancerSwapWhitelist(tokens[1].address, true)).to.be.revertedWith('ERR_FLAG_NOT_CHANGED');
+        });
+
+        it('correctly removes swap tokens', async () => {
+            await controller.setRebalancerSwapWhitelist(tokens[1].address, false);
+            const swapWhitelist = await rebalancerAsAlice.getSwapWhitelist();
+            expect(swapWhitelist.length).to.eq(3);
+            expect(swapWhitelist[0]).to.eq(tokens[0].address);
+            expect(swapWhitelist[1]).to.eq(tokens[3].address);
+            expect(swapWhitelist[2]).to.eq(tokens[2].address);
+        });
+    });
+
+    context('getters', async () => {
+        it('returns expected array of swap tokens', async () => {
+            const swapWhitelist = await rebalancerAsAlice.getSwapWhitelist();
+            expect(swapWhitelist.length).to.eq(4);
+            expect(swapWhitelist[0]).to.eq(tokens[0].address);
+            expect(swapWhitelist[1]).to.eq(tokens[1].address);
+            expect(swapWhitelist[2]).to.eq(tokens[2].address);
+            expect(swapWhitelist[3]).to.eq(tokens[3].address);
+        })
     });
 });

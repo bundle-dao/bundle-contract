@@ -11,9 +11,9 @@ contract MinterGuard is Ownable {
 
   IMinterDetailed public minter;
 
-  uint256 public mintLimit = 10500000e18;
+  uint256 public constant MINT_LIMIT = 10500000e18;
+  uint256 public constant INDIVIDUAL_MINT_LIMIT = 500000e18;
   uint256 public mintCount = 250000e18;
-  uint256 public individualMintLimit = 500000e18;
 
   event SetRewardsPerBlock(uint256 indexed _blockRewards);
   event SetBonus(uint256 _bonusMultiplier, uint256 _bonusEndBlock, uint256 _bonusLockUpBps);
@@ -46,8 +46,8 @@ contract MinterGuard is Ownable {
   /// @param _to Mint to which address
   /// @param _amount Amount to be minted
   function mintWarchest(address _to, uint256 _amount) external onlyOwner {
-    require(mintCount.add(_amount) <= mintLimit, "MinterGuard::mintWarchest:: mint exceeded mintLimit");
-    require(_amount <= individualMintLimit, "MinterGuard::mintWarchest:: mint exceeded individualMintLimit");
+    require(mintCount.add(_amount) <= MINT_LIMIT, "MinterGuard::mintWarchest:: mint exceeded mintLimit");
+    require(_amount <= INDIVIDUAL_MINT_LIMIT, "MinterGuard::mintWarchest:: mint exceeded individualMintLimit");
     minter.manualMint(_to, _amount);
     mintCount = mintCount.add(_amount);
     emit MintWarchest(_to, _amount);

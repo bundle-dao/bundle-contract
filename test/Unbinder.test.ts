@@ -38,6 +38,7 @@ describe('Unbinder', () => {
     let token1AsDeployer: MockERC20;
     let token2AsDeployer: MockERC20;
     let token3AsDeployer: MockERC20;
+    let token4AsDeployer: MockERC20;
     let bundleAsDeployer: Bundle;
     let bundleAsAlice: Bundle;
     let unbinderAsAlice: Unbinder;
@@ -101,6 +102,27 @@ describe('Unbinder', () => {
         bundleFactory = await BundleFactory.deploy(unbinderBeacon.address, bundleBeacon.address);
         await bundleFactory.deployed();
 
+        tokens = new Array();
+        for (let i = 0; i < 5; i++) {
+            const MockERC20 = (await ethers.getContractFactory('MockERC20', deployer)) as MockERC20__factory;
+            const mockERC20 = (await upgrades.deployProxy(MockERC20, [`TOKEN${i}`, `TOKEN${i}`])) as MockERC20;
+            await mockERC20.deployed();
+            tokens.push(mockERC20);
+        }
+
+        token0AsDeployer = MockERC20__factory.connect(tokens[0].address, deployer);
+        token1AsDeployer = MockERC20__factory.connect(tokens[1].address, deployer);
+        token2AsDeployer = MockERC20__factory.connect(tokens[2].address, deployer);
+        token3AsDeployer = MockERC20__factory.connect(tokens[3].address, deployer);
+        token4AsDeployer = MockERC20__factory.connect(tokens[4].address, deployer);
+
+        // Mint tokens
+        await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
+        await token1AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('50000'));
+        await token2AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('200000'));
+        await token3AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
+        await token4AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
+
         // Deploy controller
         const Controller = await ethers.getContractFactory('Controller');
         controller = (await upgrades.deployProxy(Controller, [bundleFactory.address, router.address])) as Controller;
@@ -117,29 +139,12 @@ describe('Unbinder', () => {
         // Set rebalancer on controller as deployer for testing
         await controller.setRebalancer(await rebalancer.address);
 
+        await controller.setDefaultWhitelist([tokens[0].address, tokens[1].address, tokens[2].address, tokens[3].address]);
+
         await controller.setDelay(duration.days(ethers.BigNumber.from('1')));
 
         controllerAsDeployer = Controller__factory.connect(controller.address, deployer);
         controllerAsAlice = Controller__factory.connect(controller.address, alice);
-
-        tokens = new Array();
-        for (let i = 0; i < 4; i++) {
-            const MockERC20 = (await ethers.getContractFactory('MockERC20', deployer)) as MockERC20__factory;
-            const mockERC20 = (await upgrades.deployProxy(MockERC20, [`TOKEN${i}`, `TOKEN${i}`])) as MockERC20;
-            await mockERC20.deployed();
-            tokens.push(mockERC20);
-        }
-
-        token0AsDeployer = MockERC20__factory.connect(tokens[0].address, deployer);
-        token1AsDeployer = MockERC20__factory.connect(tokens[1].address, deployer);
-        token2AsDeployer = MockERC20__factory.connect(tokens[2].address, deployer);
-        token3AsDeployer = MockERC20__factory.connect(tokens[3].address, deployer);
-
-        // Mint tokens
-        await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
-        await token1AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('50000'));
-        await token2AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('200000'));
-        await token3AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('100000'));
 
         // Deploy bundle
         await (await controllerAsDeployer.deploy('Test', 'TST')).wait();
@@ -158,6 +163,7 @@ describe('Unbinder', () => {
         await token1AsDeployer.approve(router.address, ethers.constants.MaxUint256);
         await token2AsDeployer.approve(router.address, ethers.constants.MaxUint256);
         await token3AsDeployer.approve(router.address, ethers.constants.MaxUint256);
+        await token4AsDeployer.approve(router.address, ethers.constants.MaxUint256);
 
         // Setup bundle
         await controllerAsDeployer.setup(
@@ -194,6 +200,28 @@ describe('Unbinder', () => {
         await router.addLiquidity(
             token3AsDeployer.address,
             token2AsDeployer.address,
+            ethers.utils.parseEther('10000'),
+            ethers.utils.parseEther('10000'),
+            0,
+            0,
+            await deployer.getAddress(),
+            '2000000000'
+        );
+
+        await router.addLiquidity(
+            token3AsDeployer.address,
+            token4AsDeployer.address,
+            ethers.utils.parseEther('10000'),
+            ethers.utils.parseEther('10000'),
+            0,
+            0,
+            await deployer.getAddress(),
+            '2000000000'
+        );
+
+        await router.addLiquidity(
+            token0AsDeployer.address,
+            token4AsDeployer.address,
             ethers.utils.parseEther('10000'),
             ethers.utils.parseEther('10000'),
             0,
@@ -269,11 +297,47 @@ describe('Unbinder', () => {
             expect(await token0AsDeployer.balanceOf(bundleAddr)).to.be.bignumber.and.eq('10465439372725751018643');
             expect(await token1AsDeployer.balanceOf(bundleAddr)).to.be.bignumber.and.eq('5211952505362428694386');
         });
+
+        it('reverts when given path outside whitelist', async () => {
+            await expect(unbinderAsAlice.distributeUnboundToken(
+                token3AsDeployer.address,
+                ethers.utils.parseEther('1000'),
+                '2000000000',
+                [
+                    [token3AsDeployer.address, token4AsDeployer.address, token0AsDeployer.address],
+                    [token3AsDeployer.address, token2AsDeployer.address, token1AsDeployer.address],
+                ]
+            )).to.be.revertedWith('ERR_BAD_PATH');
+        });
     });
 
     context('setters', async () => {
         it('reverts when non-controller tries to set premium', async () => {
             await expect(unbinderAsAlice.setPremium(0)).to.be.revertedWith('ERR_NOT_CONTROLLER');
         });
+
+        it('reverts when flag not changed for swap token', async () => {
+            await expect(controller.setUnbinderSwapWhitelist([unbinderAddr], tokens[1].address, true)).to.be.revertedWith('ERR_FLAG_NOT_CHANGED');
+        });
+
+        it('correctly removes swap tokens', async () => {
+            await controller.setUnbinderSwapWhitelist([unbinderAddr], tokens[1].address, false);
+            const swapWhitelist = await unbinderAsAlice.getSwapWhitelist();
+            expect(swapWhitelist.length).to.eq(3);
+            expect(swapWhitelist[0]).to.eq(tokens[0].address);
+            expect(swapWhitelist[1]).to.eq(tokens[3].address);
+            expect(swapWhitelist[2]).to.eq(tokens[2].address);
+        });
+    });
+
+    context('getters', async () => {
+        it('returns expected array of swap tokens', async () => {
+            const swapWhitelist = await unbinderAsAlice.getSwapWhitelist();
+            expect(swapWhitelist.length).to.eq(4);
+            expect(swapWhitelist[0]).to.eq(tokens[0].address);
+            expect(swapWhitelist[1]).to.eq(tokens[1].address);
+            expect(swapWhitelist[2]).to.eq(tokens[2].address);
+            expect(swapWhitelist[3]).to.eq(tokens[3].address);
+        })
     });
 });
