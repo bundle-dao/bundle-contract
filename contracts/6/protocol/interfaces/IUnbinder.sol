@@ -19,6 +19,11 @@ interface IUnbinder {
         bool            flag
     );
 
+    event LogPremium(
+        address indexed caller,
+        uint256         premium
+    );
+
     function initialize(address bundle, address router, address controller, address[] calldata whitelist) external;
 
     function handleUnboundToken(address token) external;

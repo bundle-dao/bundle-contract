@@ -81,6 +81,7 @@ contract Unbinder is IUnbinder, Initializable, ReentrancyGuardUpgradeable {
     {
         require(_premium <= MAX_PREMIUM, "ERR_MAX_PREMIUM");
         _premium = premium;
+        emit LogPremium(msg.sender, premium);
     }
 
     function setSwapWhitelist(address token, bool flag)
