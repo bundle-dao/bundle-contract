@@ -6,7 +6,18 @@ import "@bundle-dao/pancakeswap-peripheral/contracts/interfaces/IPancakeRouter02
 import "./IBundle.sol";
 
 interface IUnbinder {
+    struct SwapToken {
+        bool flag;
+        uint256 index;
+    }
+
     event TokenUnbound(address token);
+
+    event LogSwapWhitelist(
+        address indexed caller,
+        address         token,
+        bool            flag
+    );
 
     function initialize(address bundle, address router, address controller, address[] calldata whitelist) external;
 
@@ -16,7 +27,7 @@ interface IUnbinder {
 
     function setPremium(uint256 premium) external;
 
-    function setWhitelist(address token, bool flag) external;
+    function setSwapWhitelist(address token, bool flag) external;
 
     function getPremium() external view returns (uint256);
 
@@ -24,5 +35,7 @@ interface IUnbinder {
 
     function getBundle() external view returns (address);
 
-    function isWhitelisted(address token) external view returns (bool);
+    function isSwapWhitelisted(address token) external view returns (bool);
+
+    function getSwapWhitelist() external view returns (address[] memory);
 }

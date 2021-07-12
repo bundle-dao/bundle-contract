@@ -33,7 +33,8 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
     IPriceOracle private _oracle;
 
     mapping(address=>bool) private _poolAuth;
-    mapping(address=>bool) private _swapWhitelist;
+    mapping(address=>SwapToken) private _swapWhitelist;
+    address[] private _swapTokens;
 
     /* ========== Modifiers ========== */
     
@@ -83,7 +84,23 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         external override
         _control_
     {
-        _swapWhitelist[token] = flag;
+        require(flag != _swapWhitelist[token].flag, "ERR_FLAG_NOT_CHANGED");
+        uint256 index;
+
+        if (flag) {
+            _swapTokens.push(token);
+            index = _swapTokens.length - 1;
+        } else {
+            _swapTokens[_swapWhitelist[token].index] = _swapTokens[_swapTokens.length - 1];
+            _swapTokens.pop();
+            index = 0;
+        }
+
+        _swapWhitelist[token] = SwapToken({
+            flag: flag,
+            index: index
+        });
+
         emit LogSwapWhitelist(msg.sender, token, flag);
     }
 
@@ -144,7 +161,14 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         external view override
         returns (bool)
     {
-        return _swapWhitelist[token];
+        return _swapWhitelist[token].flag;
+    }
+
+    function getSwapWhitelist()
+        external view override
+        returns (address[] memory)
+    {
+        return _swapTokens;
     }
 
     /** @dev This function allows the user to execute controlled arbitrage trades against a 
@@ -181,7 +205,7 @@ contract Rebalancer is Initializable, ReentrancyGuardUpgradeable, IRebalancer {
         require(path[path.length - 1] == tokenIn, "ERR_BAD_PATH");
 
         for (uint256 i = 1; i < path.length - 1; i++) {
-            require(_swapWhitelist[path[i]], "ERR_BAD_PATH");
+            require(_swapWhitelist[path[i]].flag, "ERR_BAD_PATH");
         }
 
         // Approve tokenOut for router if not done already

@@ -154,10 +154,10 @@ describe('Rebalancer', () => {
         token3AsAlice = MockERC20__factory.connect(tokens[3].address, alice);
 
         // Whitelist tokens on rebalancer
-        await controller.setRebalancerWhitelist(tokens[0].address, true);
-        await controller.setRebalancerWhitelist(tokens[1].address, true);
-        await controller.setRebalancerWhitelist(tokens[2].address, true);
-        await controller.setRebalancerWhitelist(tokens[3].address, true);
+        await controller.setRebalancerSwapWhitelist(tokens[0].address, true);
+        await controller.setRebalancerSwapWhitelist(tokens[1].address, true);
+        await controller.setRebalancerSwapWhitelist(tokens[2].address, true);
+        await controller.setRebalancerSwapWhitelist(tokens[3].address, true);
 
         // Mint tokens
         await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('200000'));
@@ -528,5 +528,29 @@ describe('Rebalancer', () => {
         it('reverts when non-controller tries to set premium', async () => {
             await expect(rebalancerAsAlice.setPremium(0)).to.be.revertedWith('ERR_NOT_CONTROLLER');
         });
+
+        it('reverts when flag not changed for swap token', async () => {
+            await expect(controller.setRebalancerSwapWhitelist(tokens[1].address, true)).to.be.revertedWith('ERR_FLAG_NOT_CHANGED');
+        });
+
+        it('correctly removes swap tokens', async () => {
+            await controller.setRebalancerSwapWhitelist(tokens[1].address, false);
+            const swapWhitelist = await rebalancerAsAlice.getSwapWhitelist();
+            expect(swapWhitelist.length).to.eq(3);
+            expect(swapWhitelist[0]).to.eq(tokens[0].address);
+            expect(swapWhitelist[1]).to.eq(tokens[3].address);
+            expect(swapWhitelist[2]).to.eq(tokens[2].address);
+        });
+    });
+
+    context('getters', async () => {
+        it('returns expected array of swap tokens', async () => {
+            const swapWhitelist = await rebalancerAsAlice.getSwapWhitelist();
+            expect(swapWhitelist.length).to.eq(4);
+            expect(swapWhitelist[0]).to.eq(tokens[0].address);
+            expect(swapWhitelist[1]).to.eq(tokens[1].address);
+            expect(swapWhitelist[2]).to.eq(tokens[2].address);
+            expect(swapWhitelist[3]).to.eq(tokens[3].address);
+        })
     });
 });

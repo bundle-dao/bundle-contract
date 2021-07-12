@@ -315,5 +315,29 @@ describe('Unbinder', () => {
         it('reverts when non-controller tries to set premium', async () => {
             await expect(unbinderAsAlice.setPremium(0)).to.be.revertedWith('ERR_NOT_CONTROLLER');
         });
+
+        it('reverts when flag not changed for swap token', async () => {
+            await expect(controller.setUnbinderSwapWhitelist([unbinderAddr], tokens[1].address, true)).to.be.revertedWith('ERR_FLAG_NOT_CHANGED');
+        });
+
+        it('correctly removes swap tokens', async () => {
+            await controller.setUnbinderSwapWhitelist([unbinderAddr], tokens[1].address, false);
+            const swapWhitelist = await unbinderAsAlice.getSwapWhitelist();
+            expect(swapWhitelist.length).to.eq(3);
+            expect(swapWhitelist[0]).to.eq(tokens[0].address);
+            expect(swapWhitelist[1]).to.eq(tokens[3].address);
+            expect(swapWhitelist[2]).to.eq(tokens[2].address);
+        });
+    });
+
+    context('getters', async () => {
+        it('returns expected array of swap tokens', async () => {
+            const swapWhitelist = await unbinderAsAlice.getSwapWhitelist();
+            expect(swapWhitelist.length).to.eq(4);
+            expect(swapWhitelist[0]).to.eq(tokens[0].address);
+            expect(swapWhitelist[1]).to.eq(tokens[1].address);
+            expect(swapWhitelist[2]).to.eq(tokens[2].address);
+            expect(swapWhitelist[3]).to.eq(tokens[3].address);
+        })
     });
 });

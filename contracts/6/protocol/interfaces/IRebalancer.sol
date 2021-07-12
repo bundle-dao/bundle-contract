@@ -2,6 +2,11 @@
 pragma solidity 0.6.12;
 
 interface IRebalancer {
+    struct SwapToken {
+        bool flag;
+        uint256 index;
+    }
+
     event LogPremium(
         address indexed caller,
         uint256         premium
@@ -42,6 +47,8 @@ interface IRebalancer {
     function getController() external view returns (address);
 
     function getPremium() external view returns (uint256);
+
+    function getSwapWhitelist() external view returns (address[] memory);
 
     function isWhitelisted(address pool) external view returns (bool);
 

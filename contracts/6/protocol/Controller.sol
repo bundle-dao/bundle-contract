@@ -15,6 +15,11 @@ contract Controller is Initializable, OwnableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
+    event LogDefaultWhitelist(
+        address indexed caller,
+        address[]       swapWhitelist
+    );
+
     /* ========== Constants ========== */
 
     uint256 internal constant MAX_DELAY = 14 days;
@@ -64,6 +69,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         onlyOwner
     {
         _swapWhitelist = whitelist;
+        emit LogDefaultWhitelist(msg.sender, _swapWhitelist);
     }
 
     function setDelay(uint256 delay)
@@ -127,7 +133,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         _rebalancer.setWhitelist(bundle, flag);
     }
 
-    function setRebalancerWhitelist(address token, bool flag) external onlyOwner {
+    function setRebalancerSwapWhitelist(address token, bool flag) external onlyOwner {
         _rebalancer.setSwapWhitelist(token, flag);
     }
 
@@ -153,7 +159,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         }
     }
 
-    function setUnbinderWhitelist(
+    function setUnbinderSwapWhitelist(
         address[] calldata unbinders,
         address token,
         bool flag
@@ -162,7 +168,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         onlyOwner
     {
         for (uint256 i = 0; i < unbinders.length; i++) {
-            IUnbinder(unbinders[i]).setWhitelist(token, flag);
+            IUnbinder(unbinders[i]).setSwapWhitelist(token, flag);
         }
     }
 
