@@ -20,16 +20,14 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
     /* ========== Storage ========== */
 
     IPancakeRouter02 private _router;
-    IPriceOracle private _oracle;
 
     mapping(address => bool) private _whitelist;
 
     /* ========== Initialization ========== */
     
-    constructor(address oracle, address router)
+    constructor(address router)
         public
     {
-        _oracle = IPriceOracle(oracle);
         _router = IPancakeRouter02(router);
     }
 
@@ -40,13 +38,6 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
         returns (address)
     {
         return address(_router);
-    }
-
-    function getOracle()
-        external view
-        returns (address)
-    {
-        return address(_oracle);
     }
 
     function isWhitelisted(address bundle)
@@ -84,19 +75,17 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
         uint256 totalWeight = 0;
 
         // Validate paths, approve tokens for bundle, set weights / total weight
-        {
-            for (uint256 i = 0; i < tokens.length; i++) {
-                require(paths[i][0] == token, "ERR_PATH_START");
-                require(paths[i][paths[i].length - 1] == tokens[i], "ERR_PATH_END");
+        for (uint256 i = 0; i < tokens.length; i++) {
+            require(paths[i][0] == token, "ERR_PATH_START");
+            require(paths[i][paths[i].length - 1] == tokens[i], "ERR_PATH_END");
 
-                if (IERC20(tokens[i]).allowance(address(this), address(bundle)) != type(uint256).max) {
-                    IERC20(tokens[i]).approve(address(bundle), type(uint256).max);
-                }
-
-                uint256 weight = IBundle(bundle).getDenormalizedWeight(tokens[i]);
-                amounts[i] = weight.mul(amountIn);
-                totalWeight = totalWeight.add(weight);
+            if (IERC20(tokens[i]).allowance(address(this), address(bundle)) != type(uint256).max) {
+                IERC20(tokens[i]).approve(address(bundle), type(uint256).max);
             }
+
+            uint256 weight = IBundle(bundle).getDenormalizedWeight(tokens[i]);
+            amounts[i] = weight.mul(amountIn);
+            totalWeight = totalWeight.add(weight);
         }
 
         // Transfer token to the contract for swap
