@@ -109,10 +109,16 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
         IBundle(bundle).joinPool(amountOut, amounts);
         IERC20(bundle).transfer(msg.sender, IERC20(bundle).balanceOf(address(this)));
 
-        // Transfer dust amounts back to caller
+        // Swap and transfer dust amounts back to caller
         for (uint256 i = 0; i < tokens.length; i++) {
-            IERC20(tokens[i]).transfer(msg.sender, IERC20(bundle).balanceOf(address(this)));
+            _handleDustPath(
+                paths[i], 
+                IERC20(tokens[i]).balanceOf(address(this)), 
+                deadline
+            );
         }
+
+        IERC20(token).transfer(msg.sender, IERC20(token).balanceOf(address(this)));
     }
 
     function redeem(address bundle, address token, uint256 amountIn, uint256 minAmountOut, uint256 deadline, address[][] calldata paths)
@@ -135,6 +141,9 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
                 IERC20(tokens[i]).approve(address(_router), type(uint256).max);
             }
         }
+
+        // Transfer bundle to router
+        IERC20(bundle).transferFrom(msg.sender, address(this), amountIn);
 
         // Exit the pool, default to 0 min amounts as we check against the peg later
         IBundle(bundle).exitPool(amountIn, new uint256[](tokens.length));
@@ -180,6 +189,28 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
                 amountIn, 
                 amountOut.mul(9900).div(10000), 
                 path,
+                address(this),
+                deadline
+            );
+    }
+
+    function _handleDustPath(address[] calldata path, uint256 amountIn, uint256 deadline) 
+        internal
+    {
+            address[] memory reversePath = new address[](path.length);
+
+            for (uint256 i = 0; i < path.length; i++) {
+                reversePath[i] = path[path.length - i - 1];
+            }
+
+            if (IERC20(reversePath[0]).allowance(address(this), address(_router)) != type(uint256).max) {
+                IERC20(reversePath[0]).approve(address(_router), type(uint256).max);
+            }
+            
+            _router.swapExactTokensForTokens(
+                amountIn,
+                0,
+                reversePath,
                 address(this),
                 deadline
             );

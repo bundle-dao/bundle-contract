@@ -1,5 +1,5 @@
 import { ethers, upgrades } from 'hardhat';
-import { Signer } from 'ethers';
+import { BigNumber, Signer } from 'ethers';
 import chai from 'chai';
 import { solidity } from 'ethereum-waffle';
 import '@openzeppelin/test-helpers';
@@ -40,6 +40,7 @@ describe('BundleRouter', () => {
     let bundleAsAlice: Bundle;
     let unbinderAsAlice: Unbinder;
     let bundleRouterAsAlice: BundleRouter;
+    let token2AsAlice: MockERC20;
 
     // Accounts
     let deployer: Signer;
@@ -113,10 +114,12 @@ describe('BundleRouter', () => {
         token1AsDeployer = MockERC20__factory.connect(tokens[1].address, deployer);
         token2AsDeployer = MockERC20__factory.connect(tokens[2].address, deployer);
 
+        token2AsAlice = MockERC20__factory.connect(tokens[2].address, alice);
+
         // Mint tokens
-        await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('1000000'));
-        await token1AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('1000000'));
-        await token2AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('1000000'));
+        await token0AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('10000000'));
+        await token1AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('10000000'));
+        await token2AsDeployer.mint(await deployer.getAddress(), ethers.utils.parseEther('10000000'));
 
         // Deploy controller
         const Controller = await ethers.getContractFactory('Controller');
@@ -157,7 +160,7 @@ describe('BundleRouter', () => {
         await controller.setup(
             bundleAsDeployer.address,
             [token0AsDeployer.address, token1AsDeployer.address],
-            [ethers.utils.parseEther('10000'), ethers.utils.parseEther('5000')],
+            [ethers.utils.parseEther('15000'), ethers.utils.parseEther('5000')],
             [ethers.utils.parseEther('9'), ethers.utils.parseEther('3')],
             await deployer.getAddress()
         );
@@ -166,8 +169,8 @@ describe('BundleRouter', () => {
         await router.addLiquidity(
             token0AsDeployer.address,
             token2AsDeployer.address,
-            ethers.utils.parseEther('50000'),
-            ethers.utils.parseEther('50000'),
+            ethers.utils.parseEther('500000'),
+            ethers.utils.parseEther('500000'),
             0,
             0,
             await deployer.getAddress(),
@@ -177,8 +180,8 @@ describe('BundleRouter', () => {
         await router.addLiquidity(
             token1AsDeployer.address,
             token2AsDeployer.address,
-            ethers.utils.parseEther('50000'),
-            ethers.utils.parseEther('50000'),
+            ethers.utils.parseEther('500000'),
+            ethers.utils.parseEther('500000'),
             0,
             0,
             await deployer.getAddress(),
@@ -191,6 +194,10 @@ describe('BundleRouter', () => {
         bundleRouterAsAlice = BundleRouter__factory.connect(bundleRouter.address, alice);
 
         await bundleRouter.setWhitelist(bundleAddr, true);
+
+        await token2AsAlice.approve(bundleRouter.address, ethers.constants.MaxUint256);
+        await bundleAsAlice.approve(bundleRouter.address, ethers.constants.MaxUint256);
+        await bundleAsDeployer.transfer(await alice.getAddress(), ethers.utils.parseEther('90'));
     });
 
     context('getters', async () => {
@@ -209,7 +216,161 @@ describe('BundleRouter', () => {
         });
     });
 
-    context('minting', async () => {});
+    context('minting', async () => {
+        it('reverts when output less than expected', async () => {
+            await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000000'));
 
-    context('redeeming', async () => {});
+            await expect(bundleRouterAsAlice.mint(
+                bundleAddr,
+                tokens[2].address,
+                ethers.utils.parseEther('10000'),
+                ethers.utils.parseEther('50'),
+                '2000000000',
+                [[tokens[2].address, tokens[0].address], [tokens[2].address, tokens[1].address]]
+            )).to.be.revertedWith('ERR_MIN_AMOUNT_OUT');
+        });
+
+        it('reverts with bad path', async () => {
+            await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000000'));
+
+            await expect(bundleRouterAsAlice.mint(
+                bundleAddr,
+                tokens[2].address,
+                ethers.utils.parseEther('10000'),
+                ethers.utils.parseEther('50'),
+                '2000000000',
+                [[tokens[0].address, tokens[0].address], [tokens[2].address, tokens[1].address]]
+            )).to.be.revertedWith('ERR_PATH_START');
+
+            await expect(bundleRouterAsAlice.mint(
+                bundleAddr,
+                tokens[2].address,
+                ethers.utils.parseEther('10000'),
+                ethers.utils.parseEther('50'),
+                '2000000000',
+                [[tokens[2].address, tokens[2].address], [tokens[2].address, tokens[1].address]]
+            )).to.be.revertedWith('ERR_PATH_END');
+        });
+
+        it('reverts when bundle not whitelisted', async () => {
+            await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000000'));
+
+            await expect(bundleRouterAsAlice.mint(
+                controller.address,
+                tokens[2].address,
+                ethers.utils.parseEther('10000'),
+                ethers.utils.parseEther('50'),
+                '2000000000',
+                [[tokens[2].address, tokens[0].address], [tokens[2].address, tokens[1].address]]
+            )).to.be.revertedWith('ERR_NOT_WHITELISTED');
+        });
+
+        it('reverts when paths mismatched', async () => {
+            await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000000'));
+
+            await expect(bundleRouterAsAlice.mint(
+                bundleAddr,
+                tokens[2].address,
+                ethers.utils.parseEther('10000'),
+                ethers.utils.parseEther('50'),
+                '2000000000',
+                [[tokens[2].address, tokens[0].address]]
+            )).to.be.revertedWith('ERR_TOKENS_MISMATCH');
+        });
+
+        it('succeeds for valid inputs', async () => {
+            await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000'));
+
+            await bundleRouterAsAlice.mint(
+                bundleAddr,
+                tokens[2].address,
+                ethers.utils.parseEther('10000'),
+                ethers.utils.parseEther('47.5'),
+                '2000000000',
+                [[tokens[2].address, tokens[0].address], [tokens[2].address, tokens[1].address]]
+            );
+
+            expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('24604991690552259839'));
+            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('139164014699941870200'));
+        });
+    });
+
+    context('redeeming', async () => {
+        it('reverts when output less than expected', async () => {
+            await expect(bundleRouterAsAlice.redeem(
+                bundleAddr, 
+                tokens[2].address, 
+                ethers.utils.parseEther('50'), 
+                ethers.utils.parseEther('20000'),
+                '2000000000',
+                [[tokens[0].address, tokens[2].address], [tokens[1].address, tokens[2].address]]
+            )).to.be.revertedWith('ERR_MIN_AMOUNT_OUT');
+        });
+
+        it('reverts with bad path', async () => {
+            await expect(bundleRouterAsAlice.redeem(
+                bundleAddr, 
+                tokens[2].address, 
+                ethers.utils.parseEther('50'), 
+                ethers.utils.parseEther('20000'),
+                '2000000000',
+                [[tokens[2].address, tokens[2].address], [tokens[1].address, tokens[2].address]]
+            )).to.be.revertedWith('ERR_PATH_START');
+
+            await expect(bundleRouterAsAlice.redeem(
+                bundleAddr, 
+                tokens[2].address, 
+                ethers.utils.parseEther('50'), 
+                ethers.utils.parseEther('20000'),
+                '2000000000',
+                [[tokens[0].address, tokens[0].address], [tokens[1].address, tokens[2].address]]
+            )).to.be.revertedWith('ERR_PATH_END');
+        });
+
+        it('reverts when bad path length', async () => {
+            await expect(bundleRouterAsAlice.redeem(
+                bundleAddr, 
+                tokens[2].address, 
+                ethers.utils.parseEther('50'), 
+                ethers.utils.parseEther('20000'),
+                '2000000000',
+                [[tokens[0].address, tokens[2].address]]
+            )).to.be.revertedWith('ERR_TOKENS_MISMATCH');
+        });
+
+        it('reverts when bundle not whitelisted', async () => {
+            await expect(bundleRouterAsAlice.redeem(
+                controller.address, 
+                tokens[2].address, 
+                ethers.utils.parseEther('50'), 
+                ethers.utils.parseEther('20000'),
+                '2000000000',
+                [[tokens[0].address, tokens[2].address], [tokens[1].address, tokens[2].address]]
+            )).to.be.revertedWith('ERR_NOT_WHITELISTED');
+        });
+
+        it('succeeds for valid inputs', async () => {
+            await bundleRouterAsAlice.redeem(
+                bundleAddr, 
+                tokens[2].address, 
+                ethers.utils.parseEther('50'), 
+                ethers.utils.parseEther('9500'),
+                '2000000000',
+                [[tokens[0].address, tokens[2].address], [tokens[1].address, tokens[2].address]]
+            );
+
+            expect(await tokens[0].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[1].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[2].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await bundleAsAlice.balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
+
+
+            expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('9662443832138450856681'));
+            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('40'));
+        });
+    });
 });
