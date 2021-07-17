@@ -40,6 +40,7 @@ describe('BundleRouter', () => {
     let bundleAsAlice: Bundle;
     let unbinderAsAlice: Unbinder;
     let bundleRouterAsAlice: BundleRouter;
+    let token0AsAlice: MockERC20;
     let token2AsAlice: MockERC20;
 
     // Accounts
@@ -114,6 +115,7 @@ describe('BundleRouter', () => {
         token1AsDeployer = MockERC20__factory.connect(tokens[1].address, deployer);
         token2AsDeployer = MockERC20__factory.connect(tokens[2].address, deployer);
 
+        token0AsAlice = MockERC20__factory.connect(tokens[0].address, alice);
         token2AsAlice = MockERC20__factory.connect(tokens[2].address, alice);
 
         // Mint tokens
@@ -196,6 +198,7 @@ describe('BundleRouter', () => {
         await bundleRouter.setWhitelist(bundleAddr, true);
 
         await token2AsAlice.approve(bundleRouter.address, ethers.constants.MaxUint256);
+        await token0AsAlice.approve(bundleRouter.address, ethers.constants.MaxUint256);
         await bundleAsAlice.approve(bundleRouter.address, ethers.constants.MaxUint256);
         await bundleAsDeployer.transfer(await alice.getAddress(), ethers.utils.parseEther('90'));
     });
@@ -295,6 +298,24 @@ describe('BundleRouter', () => {
             expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('24604991690552259839'));
             expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('139164014699941870200'));
         });
+
+        it('succeeds when token is an underlying token', async () => {
+            await token0AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000'));
+
+            await bundleRouterAsAlice.mint(
+                bundleAddr,
+                tokens[0].address,
+                ethers.utils.parseEther('10000'),
+                ethers.utils.parseEther('47.5'),
+                '2000000000',
+                [[], [tokens[0].address, tokens[2].address, tokens[1].address]]
+            );
+
+            expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('103711147782386656875'));
+            expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('139308592348117422300'));
+        });
     });
 
     context('redeeming', async () => {
@@ -370,6 +391,28 @@ describe('BundleRouter', () => {
             expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('9662443832138450856681'));
+            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('40'));
+        });
+
+        it('succeeds when token is underlying token', async () => {
+            await bundleRouterAsAlice.redeem(
+                bundleAddr, 
+                tokens[0].address, 
+                ethers.utils.parseEther('50'), 
+                ethers.utils.parseEther('9500'),
+                '2000000000',
+                [[], [tokens[1].address, tokens[2].address, tokens[0].address]]
+            );
+
+            expect(await tokens[0].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[1].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[2].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await bundleAsAlice.balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
+
+
+            expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('9766598138859139371219'));
+            expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
+            expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('40'));
         });
     });

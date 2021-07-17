@@ -76,8 +76,10 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
 
         // Validate paths, approve tokens for bundle, set weights / total weight
         for (uint256 i = 0; i < tokens.length; i++) {
-            require(paths[i][0] == token, "ERR_PATH_START");
-            require(paths[i][paths[i].length - 1] == tokens[i], "ERR_PATH_END");
+            if (tokens[i] != token) {
+                require(paths[i][0] == token, "ERR_PATH_START");
+                require(paths[i][paths[i].length - 1] == tokens[i], "ERR_PATH_END");
+            }
 
             if (IERC20(tokens[i]).allowance(address(this), address(bundle)) != type(uint256).max) {
                 IERC20(tokens[i]).approve(address(bundle), type(uint256).max);
@@ -93,14 +95,22 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
 
         // Execute swaps and store output amounts
         for (uint256 i = 0; i < tokens.length; i++) {
-            _handlePath(
-                paths[i], 
-                amounts[i].div(totalWeight), 
-                _router.getAmountsOut(amounts[i].div(totalWeight), paths[i])[paths[i].length - 1], 
-                deadline
-            );
+            if (tokens[i] != token) {
+                _handlePath(
+                    paths[i], 
+                    amounts[i].div(totalWeight), 
+                    _router.getAmountsOut(amounts[i].div(totalWeight), paths[i])[paths[i].length - 1], 
+                    deadline
+                );
 
-            amounts[i] = IERC20(tokens[i]).balanceOf(address(this));
+                amounts[i] = IERC20(tokens[i]).balanceOf(address(this));
+            }
+        }
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (tokens[i] == token) {
+                amounts[i] = IERC20(tokens[i]).balanceOf(address(this));
+            }
         }
 
         // Compute the max amount out given balances
@@ -111,11 +121,15 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
 
         // Swap and transfer dust amounts back to caller
         for (uint256 i = 0; i < tokens.length; i++) {
-            _handleDustPath(
-                paths[i], 
-                IERC20(tokens[i]).balanceOf(address(this)), 
-                deadline
-            );
+            uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
+
+            if (balance > 0 && token != tokens[i]) {
+                _handleDustPath(
+                    paths[i], 
+                    balance, 
+                    deadline
+                );
+            }
         }
 
         IERC20(token).transfer(msg.sender, IERC20(token).balanceOf(address(this)));
@@ -134,8 +148,10 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
 
         // Approve tokens for swaps, validate paths
         for (uint256 i = 0; i < tokens.length; i++) {
-            require(paths[i][0] == tokens[i], "ERR_PATH_START");
-            require(paths[i][paths[i].length - 1] == token, "ERR_PATH_END");
+            if (tokens[i] != token) {
+                require(paths[i][0] == tokens[i], "ERR_PATH_START");
+                require(paths[i][paths[i].length - 1] == token, "ERR_PATH_END");
+            }
 
             if (IERC20(tokens[i]).allowance(address(this), address(_router)) != type(uint256).max) {
                 IERC20(tokens[i]).approve(address(_router), type(uint256).max);
@@ -150,15 +166,20 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
 
         // Execute swaps
         for (uint256 i = 0; i < tokens.length; i++) {
-            uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
-            uint256[] memory amountsOut = _router.getAmountsOut(balance, paths[i]);
+            if (tokens[i] != token) {
+                uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
 
-            _handlePath(
-                paths[i], 
-                balance, 
-                amountsOut[amountsOut.length - 1], 
-                deadline
-            );
+                if (balance > 0) {
+                    uint256[] memory amountsOut = _router.getAmountsOut(balance, paths[i]);
+
+                    _handlePath(
+                        paths[i], 
+                        balance, 
+                        amountsOut[amountsOut.length - 1], 
+                        deadline
+                    );
+                }
+            }
         }
 
         // Assert min amount out and return token to caller
