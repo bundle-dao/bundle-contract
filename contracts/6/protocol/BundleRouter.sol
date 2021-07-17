@@ -115,7 +115,6 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
 
         // Compute the max amount out given balances
         uint256 amountOut = _computeAmountOut(bundle, amounts, tokens);
-        require(amountOut > minAmountOut, "ERR_MIN_AMOUNT_OUT");
         IBundle(bundle).joinPool(amountOut, amounts);
         IERC20(bundle).transfer(msg.sender, IERC20(bundle).balanceOf(address(this)));
 
@@ -131,6 +130,14 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
                 );
             }
         }
+
+        // Require in to min out ratio is preserved
+        require(
+            amountOut > minAmountOut.sub(
+                minAmountOut.mul(IERC20(token).balanceOf(address(this))).div(amountIn)
+            ), 
+            "ERR_MIN_AMOUNT_OUT"
+        );
 
         IERC20(token).transfer(msg.sender, IERC20(token).balanceOf(address(this)));
     }
@@ -196,7 +203,8 @@ contract BundleRouter is ReentrancyGuard, BNum, Ownable {
         uint256 poolTotal = IERC20(bundle).totalSupply();
         for (uint256 i = 0; i < amounts.length; i++) {
             uint256 balance = IBundle(bundle).getBalance(tokens[i]);
-            amountOut = bmin(amountOut, bmul(poolTotal, bdiv(amounts[i], balance)));
+            // Account for negligible rounding errors
+            amountOut = bmin(amountOut, bmul(poolTotal, bdiv(amounts[i], balance)).mul(1e12).div(1e12 + 1));
         }
     }
 
