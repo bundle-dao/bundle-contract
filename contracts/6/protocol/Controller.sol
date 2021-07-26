@@ -20,6 +20,11 @@ contract Controller is Initializable, OwnableUpgradeable {
         address[]       swapWhitelist
     );
 
+    event LogVaultSet(
+        address indexed caller,
+        address         vault
+    );
+
     /* ========== Constants ========== */
 
     uint256 internal constant MAX_DELAY = 14 days;
@@ -44,6 +49,13 @@ contract Controller is Initializable, OwnableUpgradeable {
     mapping(address => BundleMetadata) private _bundles;
     address[] private _swapWhitelist;
 
+    address private _vault;
+
+    modifier _vault_() {
+        require(msg.sender == _vault, "ERR_NOT_VAULT");
+        _;
+    }
+
     /* ========== Initialization ========== */
 
     function initialize(address factory, address router)
@@ -62,6 +74,14 @@ contract Controller is Initializable, OwnableUpgradeable {
     {
         require(address(_rebalancer) == address(0), "ERR_REBALANCER_SET");
         _rebalancer = IRebalancer(rebalancer);
+    }
+
+    function setVault(address vault)
+        external
+        onlyOwner
+    {
+        _vault = vault;
+        emit LogVaultSet(msg.sender, vault);
     }
 
     function setDefaultWhitelist(address[] calldata whitelist)
@@ -211,7 +231,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         IBundle(bundle).setTargetDelta(targetDelta);
     }
 
-    function collectStreamingFee(address bundle) external onlyOwner {
+    function collectStreamingFee(address bundle) external _vault_ {
         require(_bundles[bundle].isSetup, "ERR_BUNDLE_NOT_SETUP");
         IBundle(bundle).collectStreamingFee();
     }
@@ -288,7 +308,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         address to
     ) 
         external 
-        onlyOwner 
+        _vault_ 
     {
         require(tokens.length == balances.length, "ERR_LENGTH_MISMATCH");
         for (uint256 i = 0; i < tokens.length; i++) {
