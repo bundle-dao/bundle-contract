@@ -10,8 +10,9 @@ import "./interfaces/IBundleFactory.sol";
 import "./interfaces/IBundle.sol";
 import "./interfaces/IUnbinder.sol";
 import "./interfaces/IRebalancer.sol";
+import "./interfaces/IController.sol";
 
-contract Controller is Initializable, OwnableUpgradeable {
+contract Controller is Initializable, OwnableUpgradeable, IController {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
@@ -272,7 +273,7 @@ contract Controller is Initializable, OwnableUpgradeable {
     function getBundleMetadata(
         address bundle
     ) 
-        external view 
+        external view override
         returns (
             address unbinder, 
             bool isInitialized, 
