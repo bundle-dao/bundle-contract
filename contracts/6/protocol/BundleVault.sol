@@ -38,12 +38,13 @@ contract BundleVault is Ownable {
         Deposit[] deposits;
     }
 
-    uint256 private constant INIT_DEV_SHARE = 33333;
+    uint256 private constant INIT_DEV_SHARE = 30000;
     uint256 private constant MAX_DEV_SHARE = 50000;
+    uint256 private constant DELAY = 7 days;
 
     IController private _controller;
+    IERC20 private _bdl;
     address private _dev;
-    address private _bdl;
     uint256 private _cumulativeBalance;
     uint256 private _devShare;
 
@@ -61,7 +62,7 @@ contract BundleVault is Ownable {
         );
 
         _controller = IController(controller);
-        _bdl = bdl;
+        _bdl = IERC20(bdl);
         _dev = dev;
     }
 
@@ -101,7 +102,51 @@ contract BundleVault is Ownable {
     /* ========== User Fund Movement ========== */
 
     function deposit(uint256 amount) external {
-        
+        // Merge user deposits
+        _mergeDeposits(msg.sender);
+
+        // Load relevant data
+        uint256 time = block.timestamp.mod(1 days).mul(1 days);
+        bool depositExists = false;
+        bool cumulativeDepositExists = false;
+        User storage user = _users[msg.sender];
+
+        // Transfer from user to the vault
+        _bdl.safeTransferFrom(msg.sender, address(this), amount);
+
+        // Add to existing deposit if present
+        for (uint256 i = 0; i < user.deposits.length; i++) {
+            if (user.deposits[i].time == time) {
+                user.deposits[i].balance = user.deposits[i].balance.add(amount);
+                depositExists = true;
+            }
+        }
+
+        if (!depositExists) {
+            user.deposits.push(
+                Deposit({
+                    time: time,
+                    balance: amount
+                })
+            );
+        }
+
+        // Add to cumulative deposit if present
+        for (uint256 i = 0; i < _cumulativeDeposits.length; i++) {
+            if (_cumulativeDeposits[i].time == time) {
+                _cumulativeDeposits[i].balance = _cumulativeDeposits[i].balance.add(amount);
+                cumulativeDepositExists = true;
+            }
+        }
+
+        if (!cumulativeDepositExists) {
+            _cumulativeDeposits.push(
+                Deposit({
+                    time: time,
+                    balance: amount
+                })
+            );
+        }
     }
 
     function withdraw(uint256 amount) external {
@@ -112,5 +157,32 @@ contract BundleVault is Ownable {
 
     function collect() external {
 
+    }
+
+    /* ========== Internal ========== */
+
+    function _mergeDeposits(address userAddress) internal {
+        uint256 time = block.timestamp.sub(DELAY);
+        User storage user = _users[userAddress];
+        uint256 mergeCounter = 0;
+
+        // Merge deposit if older than 7 days
+        for (uint256 i = 0; i < user.deposits.length; i++) {
+            if (user.deposits[i].time <= time) {
+                uint256 balance = user.deposits[i].balance;
+                user.activeBalance = user.activeBalance.add(balance);
+                _cumulativeBalance = _cumulativeBalance.add(balance);
+                user.deposits[i].balance = 0;
+                mergeCounter++;
+            }
+        }
+
+        for (uint256 i = 0; i < user.deposits.length.sub(mergeCounter); i++) {
+            user.deposits[i] = user.deposits[i + mergeCounter];
+        }
+
+        for (uint256 i = 0; i < mergeCounter; i++) {
+            user.deposits.pop();
+        }
     }
 }
