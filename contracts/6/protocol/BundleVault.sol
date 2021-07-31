@@ -40,6 +40,11 @@ contract BundleVault is Ownable {
         Deposit[] deposits;
     }
 
+    struct ActiveRatio {
+        uint256 underlying;
+        uint256 active;
+    }
+
     uint256 private constant INIT_DEV_SHARE = 30000;
     uint256 private constant MAX_DEV_SHARE = 50000;
     uint256 private constant DELAY = 7 days;
@@ -52,6 +57,7 @@ contract BundleVault is Ownable {
 
     address[] private _bundles;
     mapping(address=>User) private _users;
+    mapping(uint256=>ActiveRatio) private _cache;
     Deposit[] private _cumulativeDeposits;
 
     /* ========== Initialization ========== */
@@ -105,8 +111,8 @@ contract BundleVault is Ownable {
 
     function deposit(uint256 amount) external {
         // Merge user deposits
-        _mergeDeposits(msg.sender);
         _mergeCumulativeDeposits();
+        _mergeDeposits(msg.sender);
 
         // Load relevant data
         uint256 time = block.timestamp.mod(1 days).mul(1 days);
@@ -154,8 +160,8 @@ contract BundleVault is Ownable {
 
     function withdraw(uint256 amount) external {
         // Merge user deposits
-        _mergeDeposits(msg.sender);
         _mergeCumulativeDeposits();
+        _mergeDeposits(msg.sender);
 
         // Load relevant data
         User storage user = _users[msg.sender];
@@ -208,8 +214,9 @@ contract BundleVault is Ownable {
         // Merge deposit if older than 7 days
         for (uint256 i = 0; i < user.deposits.length; i++) {
             if (user.deposits[i].time <= time) {
-                uint256 balance = user.deposits[i].balance;
-                // FIX user.activeBalance = user.activeBalance.add(balance);
+                ActiveRatio memory activeRatio = _cache[time];
+                uint256 activeAmount = user.deposits[i].balance.mul(activeRatio.underlying).div(activeRatio.active);
+                user.activeBalance = user.activeBalance.add(_convertToActive(activeAmount));
                 user.deposits[i].balance = 0;
                 mergeCounter++;
             }
@@ -231,8 +238,13 @@ contract BundleVault is Ownable {
         // Merge deposit if older than 7 days
         for (uint256 i = 0; i < _cumulativeDeposits.length; i++) {
             if (_cumulativeDeposits[i].time <= time) {
+                _cache[_cumulativeDeposits[i].time] = ActiveRatio({
+                    underlying: _bdl.balanceOf(address(this)).sub(_getPendingBalance()),
+                    active: _cumulativeBalance
+                });
+
                 uint256 balance = _cumulativeDeposits[i].balance;
-                // FIX _cumulativeBalance = _cumulativeBalance.add(balance);
+                _cumulativeBalance = _cumulativeBalance.add(_convertToActive(balance));
                 _cumulativeDeposits[i].balance = 0;
                 mergeCounter++;
             }
