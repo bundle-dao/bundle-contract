@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
+pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@bundle-dao/pancakeswap-peripheral/contracts/interfaces/IPancakeRouter02.sol";
 
 import "./interfaces/IController.sol";
+import "./interfaces/IBundle.sol";
 
 contract BundleVault is Ownable {
     using SafeMath for uint256;
@@ -23,9 +26,9 @@ contract BundleVault is Ownable {
         address         dev
     );
 
-    event LogBundlesChanged(
+    event LogCollection(
         address indexed caller,
-        address[]       bundles
+        uint256         amount
     );
 
     /* ========== Storage ========== */
@@ -50,19 +53,19 @@ contract BundleVault is Ownable {
     uint256 private constant DELAY = 7 days;
 
     IController private _controller;
+    IPancakeRouter02 private _router;
     IERC20 private _bdl;
     address private _dev;
     uint256 private _cumulativeBalance;
     uint256 private _devShare;
 
-    address[] private _bundles;
     mapping(address=>User) private _users;
     mapping(uint256=>ActiveRatio) private _cache;
     Deposit[] private _cumulativeDeposits;
 
     /* ========== Initialization ========== */
 
-    constructor(address controller, address bdl, address dev) public {
+    constructor(address controller, address bdl, address dev, address router) public {
         // Validate addresses
         require(
             controller != address(0) && bdl != address(0) && dev != address(0),
@@ -72,23 +75,11 @@ contract BundleVault is Ownable {
         _controller = IController(controller);
         _bdl = IERC20(bdl);
         _dev = dev;
+        _router = IPancakeRouter02(router);
+        _devShare = INIT_DEV_SHARE;
     }
 
     /* ========== Setters ========== */
-
-    function setBundles(address[] calldata bundles) 
-        external 
-        onlyOwner
-    {
-        // Validate updated set
-        for (uint256 i = 0; i < bundles.length; i++) {
-            (,,bool isSetup,) = _controller.getBundleMetadata(bundles[i]);
-            require(isSetup, "ERR_NOT_SET_UP");
-        }
-        
-        _bundles = bundles;
-        emit LogBundlesChanged(msg.sender, bundles);
-    }
 
     function setDevShare(uint256 devShare) 
         external 
@@ -181,6 +172,7 @@ contract BundleVault is Ownable {
                 }
             }
 
+            // Break if we've withdrawn as much as possible
             if (mutableAmount == 0) {
                 break;
             }
@@ -199,9 +191,49 @@ contract BundleVault is Ownable {
 
     /* ========== Fee Collection ========== */
 
-    function collect() external {
-        _mergeCumulativeDeposits();
+    function collect(address bundle, address[][] calldata paths) external {
+        require(_cumulativeBalance > 0, "ERR_SETUP_REQUIRES_DEPOSITS");
 
+        _mergeCumulativeDeposits();
+        _controller.collectStreamingFee(bundle);
+
+        uint256 totalCollected = 0;
+        address[] memory underlying = IBundle(bundle).getCurrentTokens();
+        address[] memory tokens = new address[](underlying.length + 1);
+
+        for (uint256 i = 0; i < underlying.length; i++) {
+            tokens[i] = underlying[i];
+        }
+
+        require(paths.length == tokens.length, "ERR_PATHS_MISMATCH");
+
+        for (uint i = 0; i < paths.length; i++) {
+            require(paths[i][0] == tokens[i], "ERR_PATH_START");
+            require(paths[i][paths[i].length - 1] == address(_bdl), "ERR_PATH_END");
+        }
+
+        tokens[underlying.length] = bundle;
+
+        _controller.collectTokens(tokens, address(this));
+
+        for (uint i = 0; i < tokens.length; i++) {
+            uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
+            uint256[] memory amountsOut = _router.getAmountsOut(balance, paths[i]);
+            uint256[] memory amountsSwappedOut = _router.swapExactTokensForTokens(
+                balance, 
+                amountsOut[amountsOut.length - 1].mul(97).div(100), 
+                paths[i], 
+                address(this), 
+                block.timestamp + 10000
+            );
+
+            totalCollected = totalCollected.add(amountsSwappedOut[amountsSwappedOut.length - 1]);
+        }
+
+        _bdl.transfer(msg.sender, totalCollected.mul(15).div(1000));
+        _bdl.transfer(_dev, totalCollected.mul(_devShare).div(100000));
+
+        emit LogCollection(msg.sender, totalCollected);
     }
 
     /* ========== Internal ========== */
@@ -214,6 +246,8 @@ contract BundleVault is Ownable {
         // Merge deposit if older than 7 days
         for (uint256 i = 0; i < user.deposits.length; i++) {
             if (user.deposits[i].time <= time) {
+                // Use cache to determine appropriate ratio
+                // TODO: verify math here is equivalent to cumulative merge
                 ActiveRatio memory activeRatio = _cache[time];
                 uint256 activeAmount = user.deposits[i].balance.mul(activeRatio.underlying).div(activeRatio.active);
                 user.activeBalance = user.activeBalance.add(_convertToActive(activeAmount));
@@ -222,6 +256,7 @@ contract BundleVault is Ownable {
             }
         }
 
+        // Remove deposits from array
         for (uint256 i = 0; i < user.deposits.length.sub(mergeCounter); i++) {
             user.deposits[i] = user.deposits[i + mergeCounter];
         }
@@ -231,6 +266,7 @@ contract BundleVault is Ownable {
         }
     }
 
+    // Merges valid cumulative deposits into active balance
     function _mergeCumulativeDeposits() internal {
         uint256 time = block.timestamp.sub(DELAY);
         uint256 mergeCounter = 0;
@@ -238,11 +274,13 @@ contract BundleVault is Ownable {
         // Merge deposit if older than 7 days
         for (uint256 i = 0; i < _cumulativeDeposits.length; i++) {
             if (_cumulativeDeposits[i].time <= time) {
+                // Set the cache for user deposit merging
                 _cache[_cumulativeDeposits[i].time] = ActiveRatio({
                     underlying: _bdl.balanceOf(address(this)).sub(_getPendingBalance()),
                     active: _cumulativeBalance
                 });
 
+                // Convert to active and merge
                 uint256 balance = _cumulativeDeposits[i].balance;
                 _cumulativeBalance = _cumulativeBalance.add(_convertToActive(balance));
                 _cumulativeDeposits[i].balance = 0;
@@ -250,6 +288,7 @@ contract BundleVault is Ownable {
             }
         }
 
+        // Remove deposits from array
         for (uint256 i = 0; i < _cumulativeDeposits.length.sub(mergeCounter); i++) {
             _cumulativeDeposits[i] = _cumulativeDeposits[i + mergeCounter];
         }
@@ -259,6 +298,7 @@ contract BundleVault is Ownable {
         }
     }
 
+    // Converts an amount to an "active" amount accruing rewards
     function _convertToActive(uint256 amount) 
         internal view 
         returns(uint256) 
@@ -267,6 +307,7 @@ contract BundleVault is Ownable {
         return amount.mul(_bdl.balanceOf(address(this)).sub(_getPendingBalance())).div(_cumulativeBalance);
     }
 
+    // Returns the current balance of all pending deposits
     function _getPendingBalance()
         internal view
         returns (uint256)

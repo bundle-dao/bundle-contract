@@ -10,4 +10,11 @@ interface IController {
         bool isSetup, 
         uint256 lastUpdateTime
     );
+
+    function collectTokens(
+        address[] calldata tokens,
+        address to
+    ) external;
+
+    function collectStreamingFee(address bundle) external;
 }

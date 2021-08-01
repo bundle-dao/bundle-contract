@@ -232,7 +232,7 @@ contract Controller is Initializable, OwnableUpgradeable, IController {
         IBundle(bundle).setTargetDelta(targetDelta);
     }
 
-    function collectStreamingFee(address bundle) external _vault_ {
+    function collectStreamingFee(address bundle) external override _vault_ {
         require(_bundles[bundle].isSetup, "ERR_BUNDLE_NOT_SETUP");
         IBundle(bundle).collectStreamingFee();
     }
@@ -305,15 +305,13 @@ contract Controller is Initializable, OwnableUpgradeable, IController {
 
     function collectTokens(
         address[] calldata tokens,
-        uint256[] calldata balances,
         address to
     ) 
-        external 
+        external override
         _vault_ 
     {
-        require(tokens.length == balances.length, "ERR_LENGTH_MISMATCH");
         for (uint256 i = 0; i < tokens.length; i++) {
-            IERC20Upgradeable(tokens[i]).safeTransfer(to, balances[i]);
+            IERC20Upgradeable(tokens[i]).safeTransfer(to, IERC20Upgradeable(tokens[i]).balanceOf(address(this)));
         }
     }
 }
