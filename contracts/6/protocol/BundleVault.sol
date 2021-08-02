@@ -31,6 +31,12 @@ contract BundleVault is Ownable {
         uint256         amount
     );
 
+    event LogSwapWhitelist(
+        address indexed caller,
+        address         token,
+        bool            flag
+    );
+
     /* ========== Storage ========== */
 
     struct Deposit {
@@ -48,6 +54,11 @@ contract BundleVault is Ownable {
         uint256 active;
     }
 
+    struct SwapToken {
+        bool flag;
+        uint256 index;
+    }
+
     uint256 private constant INIT_DEV_SHARE = 30000;
     uint256 private constant MAX_DEV_SHARE = 50000;
     uint256 private constant DELAY = 7 days;
@@ -62,6 +73,8 @@ contract BundleVault is Ownable {
     mapping(address=>User) private _users;
     mapping(uint256=>ActiveRatio) private _cache;
     Deposit[] private _cumulativeDeposits;
+    mapping(address=>SwapToken) private _swapWhitelist;
+    address[] private _swapTokens;
 
     /* ========== Initialization ========== */
 
@@ -96,6 +109,121 @@ contract BundleVault is Ownable {
         require(msg.sender == _dev, "ERR_NOT_DEV");
         _dev = dev;
         emit LogDevChanged(msg.sender, dev);
+    }
+
+    function setSwapWhitelist(address[] calldata tokens, bool flag)
+        external
+        onlyOwner
+    {
+        for (uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            require(flag != _swapWhitelist[token].flag, "ERR_FLAG_NOT_CHANGED");
+            uint256 index;
+
+            if (flag) {
+                _swapTokens.push(token);
+                index = _swapTokens.length - 1;
+            } else {
+                _swapTokens[_swapWhitelist[token].index] = _swapTokens[_swapTokens.length - 1];
+                _swapTokens.pop();
+                index = 0;
+            }
+
+            _swapWhitelist[token] = SwapToken({
+                flag: flag,
+                index: index
+            });
+
+            emit LogSwapWhitelist(msg.sender, token, flag);
+        }
+    }
+
+    /* ========== Getters ========== */
+
+    function getBalance(address user)
+        external view
+        returns (uint256)
+    {
+        User memory userData = _users[user];
+        uint256 balance = 0;
+
+        balance = balance.add(
+            userData.activeBalance.mul(
+                _bdl.balanceOf(address(this)).sub(_getPendingBalance())
+            ).div(_cumulativeBalance)
+        );
+
+        uint256 time = block.timestamp.sub(DELAY);
+
+        for (uint i = 0; i < userData.deposits.length; i++) {
+            Deposit memory deposit = userData.deposits[i];
+
+            if (deposit.time <= time) {
+                ActiveRatio memory activeRatio = _cache[time];
+                uint256 activeAmount = deposit.balance.mul(activeRatio.underlying).div(activeRatio.active);
+                balance = balance.add(_convertFromActive(activeAmount));
+            } else {
+                balance = balance.add(deposit.balance);
+            }
+        }
+
+        return balance;
+    }
+
+    function isSwapWhitelisted(address token)
+        external view
+        returns (bool)
+    {
+        return _swapWhitelist[token].flag;
+    }
+
+    function getDev()
+        external view
+        returns (address)
+    {
+        return _dev;
+    }
+
+    function getCumulativeBalance()
+        external view
+        returns (uint256)
+    {
+        return _cumulativeBalance;
+    }
+
+    function getDevShare()
+        external view
+        returns (uint256)
+    {
+        return _devShare;
+    }
+
+    function getToken()
+        external view
+        returns (address)
+    {
+        return address(_bdl);
+    }
+
+    function getController()
+        external view
+        returns (address)
+    {
+        return address(_controller);
+    }
+
+    function getRouter()
+        external view
+        returns (address)
+    {
+        return address(_router);
+    }
+
+    function getSwapTokens()
+        external view
+        returns (address[] memory)
+    {
+        return _swapTokens;
     }
 
     /* ========== User Fund Movement ========== */
@@ -207,13 +335,12 @@ contract BundleVault is Ownable {
 
         require(paths.length == tokens.length, "ERR_PATHS_MISMATCH");
 
-        for (uint i = 0; i < paths.length; i++) {
+        for (uint256 i = 0; i < paths.length; i++) {
             require(paths[i][0] == tokens[i], "ERR_PATH_START");
             require(paths[i][paths[i].length - 1] == address(_bdl), "ERR_PATH_END");
         }
 
         tokens[underlying.length] = bundle;
-
         _controller.collectTokens(tokens, address(this));
 
         for (uint i = 0; i < tokens.length; i++) {
@@ -304,7 +431,23 @@ contract BundleVault is Ownable {
         returns(uint256) 
     {
         // Should discount BDL from pending deposits
-        return amount.mul(_bdl.balanceOf(address(this)).sub(_getPendingBalance())).div(_cumulativeBalance);
+        if (_cumulativeBalance == 0) {
+            return amount;
+        } else {
+            return amount.mul(_bdl.balanceOf(address(this)).sub(_getPendingBalance())).div(_cumulativeBalance);
+        }
+    }
+
+    // Converts from an "active" amount to an underlying amount
+    function _convertFromActive(uint256 amount)
+        internal view
+        returns(uint256)
+    {
+        if (_cumulativeBalance == 0) {
+            return amount;
+        } else {
+            return amount.mul(_cumulativeBalance).div(_bdl.balanceOf(address(this)).sub(_getPendingBalance()));
+        }
     }
 
     // Returns the current balance of all pending deposits
