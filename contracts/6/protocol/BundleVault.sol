@@ -21,6 +21,11 @@ contract BundleVault is Ownable {
         uint256         devShare
     );
 
+    event LogCallerShareChanged(
+        address indexed caller,
+        uint256         callerShare
+    );
+
     event LogDevChanged(
         address indexed caller,
         address         dev
@@ -61,6 +66,8 @@ contract BundleVault is Ownable {
 
     uint256 private constant INIT_DEV_SHARE = 30000;
     uint256 private constant MAX_DEV_SHARE = 50000;
+    uint256 private constant INIT_CALLER_SHARE = 1500;
+    uint256 private constant MAX_CALLER_SHARE = 5000;
     uint256 private constant DELAY = 7 days;
 
     IController private _controller;
@@ -69,6 +76,7 @@ contract BundleVault is Ownable {
     address private _dev;
     uint256 private _cumulativeBalance;
     uint256 private _devShare;
+    uint256 private _callerShare;
 
     mapping(address=>User) private _users;
     mapping(uint256=>ActiveRatio) private _cache;
@@ -90,6 +98,7 @@ contract BundleVault is Ownable {
         _dev = dev;
         _router = IPancakeRouter02(router);
         _devShare = INIT_DEV_SHARE;
+        _callerShare = INIT_CALLER_SHARE;
     }
 
     /* ========== Setters ========== */
@@ -98,9 +107,18 @@ contract BundleVault is Ownable {
         external 
         onlyOwner
     {
-        require(devShare <= MAX_DEV_SHARE, "ERR_MAX_DEV_SHARE");
+        require(devShare <= MAX_DEV_SHARE && devShare > 0, "ERR_BAD_DEV_SHARE");
         _devShare = devShare;
         emit LogShareChanged(msg.sender, devShare);
+    }
+
+    function setCallerShare(uint256 callerShare) 
+        external 
+        onlyOwner
+    {
+        require(callerShare <= MAX_CALLER_SHARE && callerShare > 0, "ERR_BAD_CALLER_SHARE");
+        _callerShare = callerShare;
+        emit LogCallerShareChanged(msg.sender, callerShare);
     }
 
     function setDev(address dev)
@@ -196,6 +214,13 @@ contract BundleVault is Ownable {
         returns (uint256)
     {
         return _devShare;
+    }
+
+    function getCallerShare()
+        external view
+        returns (uint256)
+    {
+        return _callerShare;
     }
 
     function getToken()
@@ -357,7 +382,7 @@ contract BundleVault is Ownable {
             totalCollected = totalCollected.add(amountsSwappedOut[amountsSwappedOut.length - 1]);
         }
 
-        _bdl.transfer(msg.sender, totalCollected.mul(15).div(1000));
+        _bdl.transfer(msg.sender, totalCollected.mul(_callerShare).div(100000));
         _bdl.transfer(_dev, totalCollected.mul(_devShare).div(100000));
 
         emit LogCollection(msg.sender, totalCollected);
