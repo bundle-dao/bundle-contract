@@ -369,6 +369,10 @@ contract BundleVault is Ownable {
         _controller.collectTokens(tokens, address(this));
 
         for (uint i = 0; i < tokens.length; i++) {
+            if (IERC20(tokens[i]).allowance(address(this), address(_router)) != type(uint256).max) {
+                IERC20(tokens[i]).approve(address(_router), type(uint256).max);
+            }
+
             uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
             uint256[] memory amountsOut = _router.getAmountsOut(balance, paths[i]);
             uint256[] memory amountsSwappedOut = _router.swapExactTokensForTokens(
@@ -382,8 +386,13 @@ contract BundleVault is Ownable {
             totalCollected = totalCollected.add(amountsSwappedOut[amountsSwappedOut.length - 1]);
         }
 
-        _bdl.transfer(msg.sender, totalCollected.mul(_callerShare).div(100000));
-        _bdl.transfer(_dev, totalCollected.mul(_devShare).div(100000));
+        if (_callerShare > 0) {
+            _bdl.transfer(msg.sender, totalCollected.mul(_callerShare).div(100000));
+        }
+        
+        if (_devShare > 0) {
+            _bdl.transfer(_dev, totalCollected.mul(_devShare).div(100000));
+        }
 
         emit LogCollection(msg.sender, totalCollected);
     }

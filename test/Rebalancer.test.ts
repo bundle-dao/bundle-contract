@@ -452,14 +452,16 @@ describe('Rebalancer', () => {
 
             await increase(duration.hours(ethers.BigNumber.from('1')));
 
-            await expect(rebalancerAsAlice.swap(
-                bundleAsAlice.address,
-                token0AsAlice.address,
-                token1AsAlice.address,
-                ethers.utils.parseEther('100'),
-                '2000000000',
-                [token1AsAlice.address, tokens[4].address, token0AsAlice.address]
-            )).to.be.revertedWith('ERR_BAD_PATH');
+            await expect(
+                rebalancerAsAlice.swap(
+                    bundleAsAlice.address,
+                    token0AsAlice.address,
+                    token1AsAlice.address,
+                    ethers.utils.parseEther('100'),
+                    '2000000000',
+                    [token1AsAlice.address, tokens[4].address, token0AsAlice.address]
+                )
+            ).to.be.revertedWith('ERR_BAD_PATH');
         });
 
         it('succeeds for valid conditions', async () => {
@@ -530,7 +532,9 @@ describe('Rebalancer', () => {
         });
 
         it('reverts when flag not changed for swap token', async () => {
-            await expect(controller.setRebalancerSwapWhitelist(tokens[1].address, true)).to.be.revertedWith('ERR_FLAG_NOT_CHANGED');
+            await expect(controller.setRebalancerSwapWhitelist(tokens[1].address, true)).to.be.revertedWith(
+                'ERR_FLAG_NOT_CHANGED'
+            );
         });
 
         it('correctly removes swap tokens', async () => {
@@ -551,6 +555,6 @@ describe('Rebalancer', () => {
             expect(swapWhitelist[1]).to.eq(tokens[1].address);
             expect(swapWhitelist[2]).to.eq(tokens[2].address);
             expect(swapWhitelist[3]).to.eq(tokens[3].address);
-        })
+        });
     });
 });

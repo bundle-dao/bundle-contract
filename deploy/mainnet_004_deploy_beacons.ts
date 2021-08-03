@@ -37,8 +37,11 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     });
 
     // Transfer Ownership
-    const bundleBeacon = UpgradeableBeacon__factory.connect((await deployments.get('BundleBeacon')).address, (await ethers.getSigners())[0]);
-    
+    const bundleBeacon = UpgradeableBeacon__factory.connect(
+        (await deployments.get('BundleBeacon')).address,
+        (await ethers.getSigners())[0]
+    );
+
     console.log('>> Transferring ownership of beacon to dev');
     await bundleBeacon.transferOwnership(DEV_ADDR, { gasLimit: '500000' });
     console.log('✅ Done');
@@ -62,7 +65,10 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     });
 
     // Transfer Ownership
-    const unbinderBeacon = UpgradeableBeacon__factory.connect((await deployments.get('UnbinderBeacon')).address, (await ethers.getSigners())[0]);
+    const unbinderBeacon = UpgradeableBeacon__factory.connect(
+        (await deployments.get('UnbinderBeacon')).address,
+        (await ethers.getSigners())[0]
+    );
 
     console.log('>> Transferring ownership of beacon to dev');
     await unbinderBeacon.transferOwnership(DEV_ADDR, { gasLimit: '500000' });
