@@ -166,19 +166,17 @@ contract BundleVault is Ownable {
         uint256 balance = 0;
 
         balance = balance.add(
-            userData.activeBalance.mul(
-                _bdl.balanceOf(address(this)).sub(_getPendingBalance())
-            ).div(_cumulativeBalance)
+            _convertFromActive(userData.activeBalance)
         );
 
         uint256 time = block.timestamp.sub(DELAY);
 
         for (uint i = 0; i < userData.deposits.length; i++) {
             Deposit memory deposit = userData.deposits[i];
+            ActiveRatio memory activeRatio = _cache[deposit.time];
 
-            if (deposit.time <= time) {
-                ActiveRatio memory activeRatio = _cache[time];
-                uint256 activeAmount = deposit.balance.mul(activeRatio.underlying).div(activeRatio.active);
+            if (deposit.time <= time && activeRatio.active > 0) {
+                uint256 activeAmount = deposit.balance.mul(activeRatio.active).div(activeRatio.underlying);
                 balance = balance.add(_convertFromActive(activeAmount));
             } else {
                 balance = balance.add(deposit.balance);
@@ -259,7 +257,7 @@ contract BundleVault is Ownable {
         _mergeDeposits(msg.sender);
 
         // Load relevant data
-        uint256 time = block.timestamp.mod(1 days).mul(1 days);
+        uint256 time = block.timestamp.div(1 days).mul(1 days);
         bool depositExists = false;
         bool cumulativeDepositExists = false;
         User storage user = _users[msg.sender];
@@ -409,9 +407,9 @@ contract BundleVault is Ownable {
             if (user.deposits[i].time <= time) {
                 // Use cache to determine appropriate ratio
                 // TODO: verify math here is equivalent to cumulative merge
-                ActiveRatio memory activeRatio = _cache[time];
-                uint256 activeAmount = user.deposits[i].balance.mul(activeRatio.underlying).div(activeRatio.active);
-                user.activeBalance = user.activeBalance.add(_convertToActive(activeAmount));
+                ActiveRatio memory activeRatio = _cache[user.deposits[i].time];
+                uint256 activeAmount = user.deposits[i].balance.mul(activeRatio.active).div(activeRatio.underlying);
+                user.activeBalance = user.activeBalance.add(activeAmount);
                 user.deposits[i].balance = 0;
                 mergeCounter++;
             }
@@ -437,8 +435,8 @@ contract BundleVault is Ownable {
             if (_cumulativeDeposits[i].time <= time) {
                 // Set the cache for user deposit merging
                 _cache[_cumulativeDeposits[i].time] = ActiveRatio({
-                    underlying: _bdl.balanceOf(address(this)).sub(_getPendingBalance()),
-                    active: _cumulativeBalance
+                    underlying: _cumulativeBalance > 0 ? _bdl.balanceOf(address(this)).sub(_getPendingBalance()) : 1,
+                    active: _cumulativeBalance > 0 ? _cumulativeBalance : 1
                 });
 
                 // Convert to active and merge
@@ -468,7 +466,7 @@ contract BundleVault is Ownable {
         if (_cumulativeBalance == 0) {
             return amount;
         } else {
-            return amount.mul(_bdl.balanceOf(address(this)).sub(_getPendingBalance())).div(_cumulativeBalance);
+            return amount.mul(_cumulativeBalance).div(_bdl.balanceOf(address(this)).sub(_getPendingBalance()));
         }
     }
 
@@ -480,7 +478,7 @@ contract BundleVault is Ownable {
         if (_cumulativeBalance == 0) {
             return amount;
         } else {
-            return amount.mul(_cumulativeBalance).div(_bdl.balanceOf(address(this)).sub(_getPendingBalance()));
+            return amount.mul(_bdl.balanceOf(address(this)).sub(_getPendingBalance())).div(_cumulativeBalance);
         }
     }
 

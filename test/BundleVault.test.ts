@@ -1,5 +1,5 @@
 import { ethers, upgrades } from 'hardhat';
-import { Signer } from 'ethers';
+import { BigNumber, Signer } from 'ethers';
 import chai from 'chai';
 import { solidity } from 'ethereum-waffle';
 import '@openzeppelin/test-helpers';
@@ -27,7 +27,7 @@ import {
     UpgradeableBeacon,
     UpgradeableBeacon__factory,
 } from '../typechain';
-import { duration } from './helpers/time';
+import { duration, increase } from './helpers/time';
 
 chai.use(solidity);
 const { expect } = chai;
@@ -256,6 +256,51 @@ describe('BundleToken', () => {
             expect(await bundleVault.getCallerShare()).to.be.bignumber.and.eq(1000);
 
             await expect(bundleVaultAsAlice.setCallerShare(1000)).to.be.reverted;
+        });
+
+        it('sets the dev', async () => {
+            await bundleVault.setDev(await alice.getAddress());
+            expect(await bundleVault.getDev()).to.eq(await alice.getAddress());
+
+            await expect(bundleVault.setDev(await alice.getAddress())).to.be.reverted;
+
+            await bundleVaultAsAlice.setDev(await deployer.getAddress());
+            expect(await bundleVault.getDev()).to.eq(await deployer.getAddress());
+        });
+    });
+
+    context('deposit', async () => {
+        it('deposits successfully', async () => {
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('100'));
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('100'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq('0');
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('100'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('100'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq('0');
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('100'));
+
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('10'));
+
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('110'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq(ethers.utils.parseEther('100'));
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('110'));
+
+            await bundleToken.transfer(bundleVault.address, ethers.utils.parseEther('100'));
+            await increase(duration.days(BigNumber.from('7')));
+
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('210'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq(ethers.utils.parseEther('100'));
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('210'));
+
+            await bundleVaultAsBob.deposit(ethers.utils.parseEther('10'));
+
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('210'));
+            expect(await bundleVault.getBalance(await bob.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('10'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq(ethers.utils.parseEther('105'));
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('220'));
         });
     });
 });
