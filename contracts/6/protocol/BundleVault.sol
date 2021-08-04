@@ -355,14 +355,11 @@ contract BundleVault is Ownable {
 
         for (uint256 i = 0; i < underlying.length; i++) {
             tokens[i] = underlying[i];
-        }
-
-        require(paths.length == tokens.length, "ERR_PATHS_MISMATCH");
-
-        for (uint256 i = 0; i < paths.length; i++) {
             require(paths[i][0] == tokens[i], "ERR_PATH_START");
             require(paths[i][paths[i].length - 1] == address(_bdl), "ERR_PATH_END");
         }
+
+        require(paths.length == tokens.length, "ERR_PATHS_MISMATCH");
 
         tokens[underlying.length] = bundle;
         _controller.collectTokens(tokens, address(this));
@@ -371,6 +368,8 @@ contract BundleVault is Ownable {
             if (IERC20(tokens[i]).allowance(address(this), address(_router)) != type(uint256).max) {
                 IERC20(tokens[i]).approve(address(_router), type(uint256).max);
             }
+
+            _validatePath(paths[i]);
 
             uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
             uint256[] memory amountsOut = _router.getAmountsOut(balance, paths[i]);
@@ -495,5 +494,15 @@ contract BundleVault is Ownable {
         }
 
         return pendingBalance;
+    }
+
+    function _validatePath(address[] memory path)
+        internal view
+    {
+        require(path.length >= 2, "ERR_PATH_LENGTH");
+
+        for (uint256 i = 1; i < path.length - 1; i++) {
+            require(_swapWhitelist[path[i]].flag, "ERR_BAD_PATH");
+        }
     }
 }
