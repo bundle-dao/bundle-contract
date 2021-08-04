@@ -330,12 +330,13 @@ contract BundleVault is Ownable {
         }
 
         // Subtract from active balance
-        uint256 activeAmount = mutableAmount == 0 ? 0 : _convertToActive(mutableAmount);
-
+        uint256 activeAmount = _convertToActive(mutableAmount, amount.sub(mutableAmount));
         require(user.activeBalance >= activeAmount, "ERR_AMOUNT_TOO_LARGE");
 
-        user.activeBalance = user.activeBalance.sub(activeAmount);
-        _cumulativeBalance = _cumulativeBalance.sub(activeAmount);
+        if (activeAmount > 0) {
+            user.activeBalance = user.activeBalance.sub(activeAmount);
+            _cumulativeBalance = _cumulativeBalance.sub(activeAmount);
+        }
         
         _bdl.transfer(msg.sender, amount);
     }
@@ -441,7 +442,7 @@ contract BundleVault is Ownable {
 
                 // Convert to active and merge
                 uint256 balance = _cumulativeDeposits[i].balance;
-                _cumulativeBalance = _cumulativeBalance.add(_convertToActive(balance));
+                _cumulativeBalance = _cumulativeBalance.add(_convertToActive(balance, 0));
                 _cumulativeDeposits[i].balance = 0;
                 mergeCounter++;
             }
@@ -458,7 +459,7 @@ contract BundleVault is Ownable {
     }
 
     // Converts an amount to an "active" amount accruing rewards
-    function _convertToActive(uint256 amount) 
+    function _convertToActive(uint256 amount, uint256 extra) 
         internal view 
         returns(uint256) 
     {
@@ -466,7 +467,7 @@ contract BundleVault is Ownable {
         if (_cumulativeBalance == 0) {
             return amount;
         } else {
-            return amount.mul(_cumulativeBalance).div(_bdl.balanceOf(address(this)).sub(_getPendingBalance()));
+            return amount.mul(_cumulativeBalance).div(_bdl.balanceOf(address(this)).sub(_getPendingBalance()).sub(extra));
         }
     }
 

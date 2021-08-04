@@ -302,5 +302,100 @@ describe('BundleToken', () => {
             expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq(ethers.utils.parseEther('105'));
             expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('220'));
         });
+
+        it('deposits successfully with bundle already send', async () => {
+            await bundleToken.transfer(bundleVault.address, ethers.utils.parseEther('100'));
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('100'));
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('100'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq('0');
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('200'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('100'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq('0');
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('200'));
+
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('10'));
+
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('210'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq(ethers.utils.parseEther('100'));
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.bignumber.and.eq(ethers.utils.parseEther('210'));
+        });
+    });
+
+    context('withdraw', async () => {
+        it('fails when withdrawing too much from just deposits', async () => {
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('100'));
+            await expect(bundleVaultAsAlice.withdraw(ethers.utils.parseEther('100').add('100000'))).to.be.revertedWith('ERR_AMOUNT_TOO_LARGE');
+        });
+
+        it('fails when withdrawing too much from active', async () => {
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('100'));
+            await bundleToken.transfer(bundleVault.address, ethers.utils.parseEther('100'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('10'));
+            await expect(bundleVaultAsAlice.withdraw(ethers.utils.parseEther('210').add('100000'))).to.be.revertedWith('ERR_AMOUNT_TOO_LARGE');
+        });
+
+        it('fails when withdrawing too much and multiple users', async () => {
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('100'));
+            await bundleToken.transfer(bundleVault.address, ethers.utils.parseEther('100'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            await bundleVaultAsBob.deposit(ethers.utils.parseEther('10'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('10'));
+
+            await expect(bundleVaultAsAlice.withdraw(ethers.utils.parseEther('210').add('100000'))).to.be.revertedWith('ERR_AMOUNT_TOO_LARGE');
+            await expect(bundleVaultAsBob.withdraw(ethers.utils.parseEther('10').add('100000'))).to.be.revertedWith('ERR_AMOUNT_TOO_LARGE');
+        });
+
+        it('succeeds with correct amounts', async () => {
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('100'));
+            await bundleToken.transfer(bundleVault.address, ethers.utils.parseEther('100'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            await bundleVaultAsBob.deposit(ethers.utils.parseEther('10'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('10'));
+
+            await bundleVaultAsAlice.withdraw(ethers.utils.parseEther('205'));
+            expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('10095'));
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.be.bignumber.and.eq(ethers.utils.parseEther('15'));
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('5'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            await bundleVaultAsAlice.withdraw(ethers.utils.parseEther('5'));
+            expect(await bundleToken.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('10100'));
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.be.bignumber.and.eq(ethers.utils.parseEther('10'));
+            expect(await bundleVault.getBalance(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('0'));
+
+            await bundleVaultAsBob.withdraw(ethers.utils.parseEther('10'));
+            expect(await bundleToken.balanceOf(await bob.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('10000'));
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.be.bignumber.and.eq(ethers.utils.parseEther('0'));
+            expect(await bundleVault.getBalance(await bob.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('0'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq('0');
+
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('10'));
+
+            await increase(duration.days(BigNumber.from('7')));
+
+            await bundleVaultAsAlice.deposit(ethers.utils.parseEther('10'));
+            await bundleVaultAsAlice.withdraw(ethers.utils.parseEther('20'));
+            expect(await bundleToken.balanceOf(await bob.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('10000'));
+            expect(await bundleToken.balanceOf(bundleVault.address)).to.be.bignumber.and.eq(ethers.utils.parseEther('0'));
+            expect(await bundleVault.getBalance(await bob.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('0'));
+            expect(await bundleVault.getCumulativeBalance()).to.be.bignumber.and.eq('0');
+        });
     });
 });
