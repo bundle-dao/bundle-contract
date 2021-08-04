@@ -325,6 +325,10 @@ describe('BundleToken', () => {
     });
 
     context('withdraw', async () => {
+        it('fails when withdrawing too much and no deposits', async () => {
+            await expect(bundleVaultAsAlice.withdraw(ethers.utils.parseEther('100'))).to.be.revertedWith('ERR_AMOUNT_TOO_LARGE');
+        });
+
         it('fails when withdrawing too much from just deposits', async () => {
             await bundleVaultAsAlice.deposit(ethers.utils.parseEther('100'));
             await expect(bundleVaultAsAlice.withdraw(ethers.utils.parseEther('100').add('100000'))).to.be.revertedWith('ERR_AMOUNT_TOO_LARGE');
