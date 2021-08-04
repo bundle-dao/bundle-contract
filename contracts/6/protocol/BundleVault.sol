@@ -266,22 +266,15 @@ contract BundleVault is Ownable {
 
         // Load relevant data
         uint256 time = block.timestamp.div(1 days).mul(1 days);
-        bool depositExists = false;
-        bool cumulativeDepositExists = false;
         User storage user = _users[msg.sender];
 
         // Transfer from user to the vault
         _bdl.safeTransferFrom(msg.sender, address(this), amount);
 
         // Add to existing deposit if present
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            if (user.deposits[i].time == time) {
-                user.deposits[i].balance = user.deposits[i].balance.add(amount);
-                depositExists = true;
-            }
-        }
-
-        if (!depositExists) {
+        if (user.deposits.length > 0 && user.deposits[user.deposits.length - 1].time == time) {
+            user.deposits[user.deposits.length - 1].balance = user.deposits[user.deposits.length - 1].balance.add(amount);
+        } else {
             user.deposits.push(
                 Deposit({
                     time: time,
@@ -291,14 +284,9 @@ contract BundleVault is Ownable {
         }
 
         // Add to cumulative deposit if present
-        for (uint256 i = 0; i < _cumulativeDeposits.length; i++) {
-            if (_cumulativeDeposits[i].time == time) {
-                _cumulativeDeposits[i].balance = _cumulativeDeposits[i].balance.add(amount);
-                cumulativeDepositExists = true;
-            }
-        }
-
-        if (!cumulativeDepositExists) {
+        if (_cumulativeDeposits.length > 0 && _cumulativeDeposits[_cumulativeDeposits.length - 1].time == time) {
+            _cumulativeDeposits[_cumulativeDeposits.length - 1].balance = _cumulativeDeposits[_cumulativeDeposits.length - 1].balance.add(amount);
+        } else {
             _cumulativeDeposits.push(
                 Deposit({
                     time: time,
