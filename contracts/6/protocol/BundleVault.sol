@@ -249,6 +249,14 @@ contract BundleVault is Ownable {
         return _swapTokens;
     }
 
+    function getActiveBalance(address user)
+        external view
+        returns (uint256)
+    {
+        User memory userData = _users[user];
+        return _convertFromActive(userData.activeBalance);
+    }
+
     /* ========== User Fund Movement ========== */
 
     function deposit(uint256 amount) external {
@@ -317,7 +325,7 @@ contract BundleVault is Ownable {
 
             // Update cumulative deposit
             uint256 time = user.deposits[user.deposits.length - 1 - i].time;
-            for (uint256 j = 0; i < _cumulativeDeposits.length; i++) {
+            for (uint256 j = 0; j < _cumulativeDeposits.length; j++) {
                 if (_cumulativeDeposits[j].time == time) {
                     _cumulativeDeposits[j].balance = _cumulativeDeposits[j].balance.sub(subAmount);
                 }
