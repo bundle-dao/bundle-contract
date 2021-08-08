@@ -340,9 +340,9 @@ contract BundleVault is Ownable {
     /* ========== Fee Collection ========== */
 
     function collect(address bundle, address[][] calldata paths) external {
+        _mergeCumulativeDeposits();
         require(_cumulativeBalance > 0, "ERR_SETUP_REQUIRES_DEPOSITS");
 
-        _mergeCumulativeDeposits();
         _controller.collectStreamingFee(bundle);
 
         uint256 totalCollected = 0;
