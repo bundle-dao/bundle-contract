@@ -754,13 +754,15 @@ describe('Bundle', () => {
             await token0AsDeployer.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
             await token1AsDeployer.approve(bundleAsDeployer.address, ethers.constants.MaxUint256);
 
-            await expect(controllerAsDeployer.setup(
-                bundleAsDeployer.address,
-                [token0AsDeployer.address, token0AsDeployer.address],
-                [ethers.utils.parseEther('10000'), ethers.utils.parseEther('5000')],
-                [ethers.utils.parseEther('2'), ethers.utils.parseEther('1')],
-                await deployer.getAddress()
-            )).to.be.revertedWith("ERR_DUPLICATE_TOKEN");
+            await expect(
+                controllerAsDeployer.setup(
+                    bundleAsDeployer.address,
+                    [token0AsDeployer.address, token0AsDeployer.address],
+                    [ethers.utils.parseEther('10000'), ethers.utils.parseEther('5000')],
+                    [ethers.utils.parseEther('2'), ethers.utils.parseEther('1')],
+                    await deployer.getAddress()
+                )
+            ).to.be.revertedWith('ERR_DUPLICATE_TOKEN');
         });
     });
 

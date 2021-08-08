@@ -31,8 +31,11 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('✅ Done');
 
     // Transfer Ownership
-    const priceOracle = PriceOracle__factory.connect((await deployments.get('PriceOracle')).address, (await ethers.getSigners())[0]);
-    
+    const priceOracle = PriceOracle__factory.connect(
+        (await deployments.get('PriceOracle')).address,
+        (await ethers.getSigners())[0]
+    );
+
     console.log('>> Transferring ownership of oracle to dev');
     await priceOracle.transferOwnership(DEV_ADDR, { gasLimit: '500000' });
     console.log('✅ Done');

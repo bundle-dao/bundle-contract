@@ -10,14 +10,20 @@ import "./interfaces/IBundleFactory.sol";
 import "./interfaces/IBundle.sol";
 import "./interfaces/IUnbinder.sol";
 import "./interfaces/IRebalancer.sol";
+import "./interfaces/IController.sol";
 
-contract Controller is Initializable, OwnableUpgradeable {
+contract Controller is Initializable, OwnableUpgradeable, IController {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
     event LogDefaultWhitelist(
         address indexed caller,
         address[]       swapWhitelist
+    );
+
+    event LogVaultSet(
+        address indexed caller,
+        address         vault
     );
 
     /* ========== Constants ========== */
@@ -44,6 +50,13 @@ contract Controller is Initializable, OwnableUpgradeable {
     mapping(address => BundleMetadata) private _bundles;
     address[] private _swapWhitelist;
 
+    address private _vault;
+
+    modifier _vault_() {
+        require(msg.sender == _vault, "ERR_NOT_VAULT");
+        _;
+    }
+
     /* ========== Initialization ========== */
 
     function initialize(address factory, address router)
@@ -62,6 +75,14 @@ contract Controller is Initializable, OwnableUpgradeable {
     {
         require(address(_rebalancer) == address(0), "ERR_REBALANCER_SET");
         _rebalancer = IRebalancer(rebalancer);
+    }
+
+    function setVault(address vault)
+        external
+        onlyOwner
+    {
+        _vault = vault;
+        emit LogVaultSet(msg.sender, vault);
     }
 
     function setDefaultWhitelist(address[] calldata whitelist)
@@ -211,7 +232,7 @@ contract Controller is Initializable, OwnableUpgradeable {
         IBundle(bundle).setTargetDelta(targetDelta);
     }
 
-    function collectStreamingFee(address bundle) external onlyOwner {
+    function collectStreamingFee(address bundle) external override _vault_ {
         require(_bundles[bundle].isSetup, "ERR_BUNDLE_NOT_SETUP");
         IBundle(bundle).collectStreamingFee();
     }
@@ -252,7 +273,7 @@ contract Controller is Initializable, OwnableUpgradeable {
     function getBundleMetadata(
         address bundle
     ) 
-        external view 
+        external view override
         returns (
             address unbinder, 
             bool isInitialized, 
@@ -284,15 +305,13 @@ contract Controller is Initializable, OwnableUpgradeable {
 
     function collectTokens(
         address[] calldata tokens,
-        uint256[] calldata balances,
         address to
     ) 
-        external 
-        onlyOwner 
+        external override
+        _vault_ 
     {
-        require(tokens.length == balances.length, "ERR_LENGTH_MISMATCH");
         for (uint256 i = 0; i < tokens.length; i++) {
-            IERC20Upgradeable(tokens[i]).safeTransfer(to, balances[i]);
+            IERC20Upgradeable(tokens[i]).safeTransfer(to, IERC20Upgradeable(tokens[i]).balanceOf(address(this)));
         }
     }
 }

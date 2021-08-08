@@ -23,7 +23,7 @@ import {
     Unbinder__factory,
     BundleRouter,
     BundleRouter__factory,
-    Rebalancer
+    Rebalancer,
 } from '../typechain';
 import { duration } from './helpers/time';
 
@@ -223,62 +223,84 @@ describe('BundleRouter', () => {
         it('reverts when output less than expected', async () => {
             await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000000'));
 
-            await expect(bundleRouterAsAlice.mint(
-                bundleAddr,
-                tokens[2].address,
-                ethers.utils.parseEther('10000'),
-                ethers.utils.parseEther('50'),
-                '2000000000',
-                [[tokens[2].address, tokens[0].address], [tokens[2].address, tokens[1].address]]
-            )).to.be.revertedWith('ERR_MIN_AMOUNT_OUT');
+            await expect(
+                bundleRouterAsAlice.mint(
+                    bundleAddr,
+                    tokens[2].address,
+                    ethers.utils.parseEther('10000'),
+                    ethers.utils.parseEther('50'),
+                    '2000000000',
+                    [
+                        [tokens[2].address, tokens[0].address],
+                        [tokens[2].address, tokens[1].address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_MIN_AMOUNT_OUT');
         });
 
         it('reverts with bad path', async () => {
             await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000000'));
 
-            await expect(bundleRouterAsAlice.mint(
-                bundleAddr,
-                tokens[2].address,
-                ethers.utils.parseEther('10000'),
-                ethers.utils.parseEther('50'),
-                '2000000000',
-                [[tokens[0].address, tokens[0].address], [tokens[2].address, tokens[1].address]]
-            )).to.be.revertedWith('ERR_PATH_START');
+            await expect(
+                bundleRouterAsAlice.mint(
+                    bundleAddr,
+                    tokens[2].address,
+                    ethers.utils.parseEther('10000'),
+                    ethers.utils.parseEther('50'),
+                    '2000000000',
+                    [
+                        [tokens[0].address, tokens[0].address],
+                        [tokens[2].address, tokens[1].address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_PATH_START');
 
-            await expect(bundleRouterAsAlice.mint(
-                bundleAddr,
-                tokens[2].address,
-                ethers.utils.parseEther('10000'),
-                ethers.utils.parseEther('50'),
-                '2000000000',
-                [[tokens[2].address, tokens[2].address], [tokens[2].address, tokens[1].address]]
-            )).to.be.revertedWith('ERR_PATH_END');
+            await expect(
+                bundleRouterAsAlice.mint(
+                    bundleAddr,
+                    tokens[2].address,
+                    ethers.utils.parseEther('10000'),
+                    ethers.utils.parseEther('50'),
+                    '2000000000',
+                    [
+                        [tokens[2].address, tokens[2].address],
+                        [tokens[2].address, tokens[1].address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_PATH_END');
         });
 
         it('reverts when bundle not whitelisted', async () => {
             await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000000'));
 
-            await expect(bundleRouterAsAlice.mint(
-                controller.address,
-                tokens[2].address,
-                ethers.utils.parseEther('10000'),
-                ethers.utils.parseEther('50'),
-                '2000000000',
-                [[tokens[2].address, tokens[0].address], [tokens[2].address, tokens[1].address]]
-            )).to.be.revertedWith('ERR_NOT_WHITELISTED');
+            await expect(
+                bundleRouterAsAlice.mint(
+                    controller.address,
+                    tokens[2].address,
+                    ethers.utils.parseEther('10000'),
+                    ethers.utils.parseEther('50'),
+                    '2000000000',
+                    [
+                        [tokens[2].address, tokens[0].address],
+                        [tokens[2].address, tokens[1].address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_NOT_WHITELISTED');
         });
 
         it('reverts when paths mismatched', async () => {
             await token2AsDeployer.mint(await alice.getAddress(), ethers.utils.parseEther('10000000'));
 
-            await expect(bundleRouterAsAlice.mint(
-                bundleAddr,
-                tokens[2].address,
-                ethers.utils.parseEther('10000'),
-                ethers.utils.parseEther('50'),
-                '2000000000',
-                [[tokens[2].address, tokens[0].address]]
-            )).to.be.revertedWith('ERR_TOKENS_MISMATCH');
+            await expect(
+                bundleRouterAsAlice.mint(
+                    bundleAddr,
+                    tokens[2].address,
+                    ethers.utils.parseEther('10000'),
+                    ethers.utils.parseEther('50'),
+                    '2000000000',
+                    [[tokens[2].address, tokens[0].address]]
+                )
+            ).to.be.revertedWith('ERR_TOKENS_MISMATCH');
         });
 
         it('succeeds for valid inputs', async () => {
@@ -290,13 +312,20 @@ describe('BundleRouter', () => {
                 ethers.utils.parseEther('10000'),
                 ethers.utils.parseEther('49'),
                 '2000000000',
-                [[tokens[2].address, tokens[0].address], [tokens[2].address, tokens[1].address]]
+                [
+                    [tokens[2].address, tokens[0].address],
+                    [tokens[2].address, tokens[1].address],
+                ]
             );
 
             expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
-            expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('24604991700611948483'));
-            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('139164014699892706185'));
+            expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(
+                BigNumber.from('24604991700611948483')
+            );
+            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(
+                BigNumber.from('139164014699892706185')
+            );
         });
 
         it('succeeds when token is an underlying token', async () => {
@@ -311,75 +340,104 @@ describe('BundleRouter', () => {
                 [[], [tokens[0].address, tokens[2].address, tokens[1].address]]
             );
 
-            expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('103711147792287783106'));
+            expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(
+                BigNumber.from('103711147792287783106')
+            );
             expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
-            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('139308592348068113707'));
+            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(
+                BigNumber.from('139308592348068113707')
+            );
         });
     });
 
     context('redeeming', async () => {
         it('reverts when output less than expected', async () => {
-            await expect(bundleRouterAsAlice.redeem(
-                bundleAddr, 
-                tokens[2].address, 
-                ethers.utils.parseEther('50'), 
-                ethers.utils.parseEther('20000'),
-                '2000000000',
-                [[tokens[0].address, tokens[2].address], [tokens[1].address, tokens[2].address]]
-            )).to.be.revertedWith('ERR_MIN_AMOUNT_OUT');
+            await expect(
+                bundleRouterAsAlice.redeem(
+                    bundleAddr,
+                    tokens[2].address,
+                    ethers.utils.parseEther('50'),
+                    ethers.utils.parseEther('20000'),
+                    '2000000000',
+                    [
+                        [tokens[0].address, tokens[2].address],
+                        [tokens[1].address, tokens[2].address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_MIN_AMOUNT_OUT');
         });
 
         it('reverts with bad path', async () => {
-            await expect(bundleRouterAsAlice.redeem(
-                bundleAddr, 
-                tokens[2].address, 
-                ethers.utils.parseEther('50'), 
-                ethers.utils.parseEther('20000'),
-                '2000000000',
-                [[tokens[2].address, tokens[2].address], [tokens[1].address, tokens[2].address]]
-            )).to.be.revertedWith('ERR_PATH_START');
+            await expect(
+                bundleRouterAsAlice.redeem(
+                    bundleAddr,
+                    tokens[2].address,
+                    ethers.utils.parseEther('50'),
+                    ethers.utils.parseEther('20000'),
+                    '2000000000',
+                    [
+                        [tokens[2].address, tokens[2].address],
+                        [tokens[1].address, tokens[2].address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_PATH_START');
 
-            await expect(bundleRouterAsAlice.redeem(
-                bundleAddr, 
-                tokens[2].address, 
-                ethers.utils.parseEther('50'), 
-                ethers.utils.parseEther('20000'),
-                '2000000000',
-                [[tokens[0].address, tokens[0].address], [tokens[1].address, tokens[2].address]]
-            )).to.be.revertedWith('ERR_PATH_END');
+            await expect(
+                bundleRouterAsAlice.redeem(
+                    bundleAddr,
+                    tokens[2].address,
+                    ethers.utils.parseEther('50'),
+                    ethers.utils.parseEther('20000'),
+                    '2000000000',
+                    [
+                        [tokens[0].address, tokens[0].address],
+                        [tokens[1].address, tokens[2].address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_PATH_END');
         });
 
         it('reverts when bad path length', async () => {
-            await expect(bundleRouterAsAlice.redeem(
-                bundleAddr, 
-                tokens[2].address, 
-                ethers.utils.parseEther('50'), 
-                ethers.utils.parseEther('20000'),
-                '2000000000',
-                [[tokens[0].address, tokens[2].address]]
-            )).to.be.revertedWith('ERR_TOKENS_MISMATCH');
+            await expect(
+                bundleRouterAsAlice.redeem(
+                    bundleAddr,
+                    tokens[2].address,
+                    ethers.utils.parseEther('50'),
+                    ethers.utils.parseEther('20000'),
+                    '2000000000',
+                    [[tokens[0].address, tokens[2].address]]
+                )
+            ).to.be.revertedWith('ERR_TOKENS_MISMATCH');
         });
 
         it('reverts when bundle not whitelisted', async () => {
-            await expect(bundleRouterAsAlice.redeem(
-                controller.address, 
-                tokens[2].address, 
-                ethers.utils.parseEther('50'), 
-                ethers.utils.parseEther('20000'),
-                '2000000000',
-                [[tokens[0].address, tokens[2].address], [tokens[1].address, tokens[2].address]]
-            )).to.be.revertedWith('ERR_NOT_WHITELISTED');
+            await expect(
+                bundleRouterAsAlice.redeem(
+                    controller.address,
+                    tokens[2].address,
+                    ethers.utils.parseEther('50'),
+                    ethers.utils.parseEther('20000'),
+                    '2000000000',
+                    [
+                        [tokens[0].address, tokens[2].address],
+                        [tokens[1].address, tokens[2].address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_NOT_WHITELISTED');
         });
 
         it('succeeds for valid inputs', async () => {
             await bundleRouterAsAlice.redeem(
-                bundleAddr, 
-                tokens[2].address, 
-                ethers.utils.parseEther('50'), 
+                bundleAddr,
+                tokens[2].address,
+                ethers.utils.parseEther('50'),
                 ethers.utils.parseEther('9500'),
                 '2000000000',
-                [[tokens[0].address, tokens[2].address], [tokens[1].address, tokens[2].address]]
+                [
+                    [tokens[0].address, tokens[2].address],
+                    [tokens[1].address, tokens[2].address],
+                ]
             );
 
             expect(await tokens[0].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
@@ -387,18 +445,21 @@ describe('BundleRouter', () => {
             expect(await tokens[2].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await bundleAsAlice.balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
 
-
             expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
-            expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('9662443832138450856681'));
-            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('40'));
+            expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(
+                BigNumber.from('9662443832138450856681')
+            );
+            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('40')
+            );
         });
 
         it('succeeds when token is underlying token', async () => {
             await bundleRouterAsAlice.redeem(
-                bundleAddr, 
-                tokens[0].address, 
-                ethers.utils.parseEther('50'), 
+                bundleAddr,
+                tokens[0].address,
+                ethers.utils.parseEther('50'),
                 ethers.utils.parseEther('9500'),
                 '2000000000',
                 [[], [tokens[1].address, tokens[2].address, tokens[0].address]]
@@ -409,11 +470,14 @@ describe('BundleRouter', () => {
             expect(await tokens[2].balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await bundleAsAlice.balanceOf(bundleRouter.address)).to.be.bignumber.and.eq(BigNumber.from('0'));
 
-
-            expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('9766598138859139371219'));
+            expect(await tokens[0].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(
+                BigNumber.from('9766598138859139371219')
+            );
             expect(await tokens[1].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
             expect(await tokens[2].balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(BigNumber.from('0'));
-            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(ethers.utils.parseEther('40'));
+            expect(await bundleAsAlice.balanceOf(await alice.getAddress())).to.be.bignumber.and.eq(
+                ethers.utils.parseEther('40')
+            );
         });
     });
 });

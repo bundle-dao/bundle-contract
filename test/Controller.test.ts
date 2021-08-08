@@ -77,6 +77,7 @@ describe('Controller', () => {
             ethers.constants.AddressZero,
         ])) as Controller;
         await controller.deployed();
+        await controller.setVault(await deployer.getAddress());
 
         // Deploy rebalancer
         const Rebalancer = await ethers.getContractFactory('Rebalancer');
@@ -217,21 +218,19 @@ describe('Controller', () => {
             await expect(
                 controllerAsAlice.collectTokens(
                     [token0AsDeployer.address, token1AsDeployer.address],
-                    ['273972602739726027', '136986301369863013'],
                     await deployer.getAddress()
                 )
             ).to.be.reverted;
 
             await controllerAsDeployer.collectTokens(
                 [token0AsDeployer.address, token1AsDeployer.address],
-                ['273972602739726027', '136986301369863013'],
                 await deployer.getAddress()
             );
             expect(await token0AsDeployer.balanceOf(await deployer.getAddress())).to.be.bignumber.and.eq(
                 '273972602739726027'
             );
             expect(await token1AsDeployer.balanceOf(await deployer.getAddress())).to.be.bignumber.and.eq(
-                '136986301369863013'
+                '136986301369863014'
             );
 
             // Fails to set swap fee as non-owner

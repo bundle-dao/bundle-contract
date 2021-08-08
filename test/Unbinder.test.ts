@@ -139,7 +139,12 @@ describe('Unbinder', () => {
         // Set rebalancer on controller as deployer for testing
         await controller.setRebalancer(await rebalancer.address);
 
-        await controller.setDefaultWhitelist([tokens[0].address, tokens[1].address, tokens[2].address, tokens[3].address]);
+        await controller.setDefaultWhitelist([
+            tokens[0].address,
+            tokens[1].address,
+            tokens[2].address,
+            tokens[3].address,
+        ]);
 
         await controller.setDelay(duration.days(ethers.BigNumber.from('1')));
 
@@ -299,15 +304,17 @@ describe('Unbinder', () => {
         });
 
         it('reverts when given path outside whitelist', async () => {
-            await expect(unbinderAsAlice.distributeUnboundToken(
-                token3AsDeployer.address,
-                ethers.utils.parseEther('1000'),
-                '2000000000',
-                [
-                    [token3AsDeployer.address, token4AsDeployer.address, token0AsDeployer.address],
-                    [token3AsDeployer.address, token2AsDeployer.address, token1AsDeployer.address],
-                ]
-            )).to.be.revertedWith('ERR_BAD_PATH');
+            await expect(
+                unbinderAsAlice.distributeUnboundToken(
+                    token3AsDeployer.address,
+                    ethers.utils.parseEther('1000'),
+                    '2000000000',
+                    [
+                        [token3AsDeployer.address, token4AsDeployer.address, token0AsDeployer.address],
+                        [token3AsDeployer.address, token2AsDeployer.address, token1AsDeployer.address],
+                    ]
+                )
+            ).to.be.revertedWith('ERR_BAD_PATH');
         });
     });
 
@@ -317,7 +324,9 @@ describe('Unbinder', () => {
         });
 
         it('reverts when flag not changed for swap token', async () => {
-            await expect(controller.setUnbinderSwapWhitelist([unbinderAddr], tokens[1].address, true)).to.be.revertedWith('ERR_FLAG_NOT_CHANGED');
+            await expect(
+                controller.setUnbinderSwapWhitelist([unbinderAddr], tokens[1].address, true)
+            ).to.be.revertedWith('ERR_FLAG_NOT_CHANGED');
         });
 
         it('correctly removes swap tokens', async () => {
@@ -338,6 +347,6 @@ describe('Unbinder', () => {
             expect(swapWhitelist[1]).to.eq(tokens[1].address);
             expect(swapWhitelist[2]).to.eq(tokens[2].address);
             expect(swapWhitelist[3]).to.eq(tokens[3].address);
-        })
+        });
     });
 });
